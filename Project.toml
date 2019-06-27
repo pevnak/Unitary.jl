@@ -1,0 +1,8 @@
+name = "Unitary"
+uuid = "75ebfc8e-976a-11e9-26c7-f5346d660b1d"
+authors = ["Pevnak <pevnak@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
