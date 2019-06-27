@@ -1,5 +1,5 @@
-using Unitary, Test, LinearAlgebra
-using Unitary: UnitaryMatrix
+using Unitary, Test, LinearAlgebra, Flux
+using Unitary: UnitaryMatrix, ∇mul!
 
 @testset "Testing multiplication and transposed" begin
 	a = UnitaryMatrix([1])
@@ -21,7 +21,6 @@ end
 
 @testset "Integration with Flux" begin
 	a = UnitaryMatrix(param([1]))
-	ad = Matrix(a)
 
 	x = rand(2,10)
 	@test a * x ≈ ad * x
@@ -30,3 +29,5 @@ end
 end
 
 
+ Flux.Tracker.ngradient(θ -> sum(Unitary._mulax!(similar(x), x, sin(θ[1]), cos(θ[1]))),[1.0])
+ ∇mul!(a, Δ, x)
