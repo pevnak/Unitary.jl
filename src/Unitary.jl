@@ -7,7 +7,10 @@ struct UnitaryMatrix{T}
 	θ::T	
 end
 
+const AbstractMatVec = Union{AbstractMatrix, AbstractVector}
+const TrackedMatVec = Union{TrackedMatrix, TrackedVector}
 const TransposedUnitaryMatrix = Transpose{X,A} where {X, A<:UnitaryMatrix}
+const TransposedVector = Transpose{X,A} where {X, A<: AbstractVector}
 
 Flux.param(a::UnitaryMatrix) = UnitaryMatrix(param(a.θ))
 Flux.@treelike(UnitaryMatrix)
@@ -23,20 +26,23 @@ function Base.Matrix(a::UnitaryMatrix{T}) where {T<:Vector}
 	[cos(θ)  (- sin(θ)); sin(θ) cos(θ)]
 end
 
-#TODO: do this properly
+
 Base.size(a::UnitaryMatrix) = (2,2)
 Base.size(a::UnitaryMatrix, i::Int) = (i, i)
+Base.eltype(a::UnitaryMatrix) = eltype(a.θ)
 Base.length(a::UnitaryMatrix) = 4
 Flux.data(a::UnitaryMatrix) = UnitaryMatrix(Flux.data(a.θ))
 Flux.data(a::TransposedUnitaryMatrix) = transpose(UnitaryMatrix(Flux.data(a.parent.θ)))
-
 LinearAlgebra.transpose(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
+
 
 *(a::UnitaryMatrix, x) = _mulax(a.θ, x)
 _mulax(θ, x) = _mulax((sin(θ[1]), cos(θ[1])), x)
 
 *(a::TransposedUnitaryMatrix, x::AbstractMatrix) = _mulatx(a.parent.θ, x)
+*(a::TransposedUnitaryMatrix, x::AbstractVector) = _mulatx(a.parent.θ, x)
 *(a::TransposedUnitaryMatrix, x::TrackedMatrix) = _mulatx(a.parent.θ, x)
+*(a::TransposedUnitaryMatrix, x::TrackedVector) = _mulatx(a.parent.θ, x)
 _mulatx(θ, x) = _mulax((- sin(θ[1]), cos(θ[1])), x)
 
 function _mulax(sincosθ::Tuple, x)
@@ -52,7 +58,7 @@ end
 
 _∇mulax(θ, Δ, x) = _∇mulax(Δ, (sin(θ[1]), cos(θ[1])), x)
 _∇mulatx(θ, Δ, x) = _∇mulax(Δ, (sin(θ[1]), - cos(θ[1])), x)
-function _∇mulax(Δ, sincosθ::Tuple, x::AbstractMatrix)
+function _∇mulax(Δ, sincosθ::Tuple, x::AbstractMatVec)
 	sinθ, cosθ = sincosθ
 	∇θ = similar(Δ, 1)
 	fill!(∇θ, 0)
@@ -67,6 +73,8 @@ end
 _mulxa(x, θ) = _mulxa(x, (sin(θ[1]), cos(θ[1])))
 
 *(x::AbstractMatrix, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+*(x::AbstractVector, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+*(x::TransposedVector, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
 *(x::TrackedMatrix, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
 _mulxat(x, θ) = _mulxa(x, (- sin(θ[1]), cos(θ[1])))
 
@@ -83,7 +91,7 @@ end
 
 _∇mulxa(θ, Δ, x) = _∇mulxa(Δ, x, (sin(θ[1]), cos(θ[1])))
 _∇mulxat(θ, Δ, x) = _∇mulxa(Δ, x, (sin(θ[1]), - cos(θ[1])))
-function _∇mulxa(Δ, x::AbstractMatrix, sincosθ::Tuple)
+function _∇mulxa(Δ, x::AbstractMatVec, sincosθ::Tuple)
 	sinθ, cosθ = sincosθ
 	∇θ = similar(Δ, 1)
 	fill!(∇θ, 0)
@@ -95,10 +103,10 @@ function _∇mulxa(Δ, x::AbstractMatrix, sincosθ::Tuple)
 end
 
 
-_mulax(a::TrackedArray, x::AbstractMatrix) = Flux.Tracker.track(_mulax, a, x)
-_mulatx(a::TrackedArray, x::AbstractMatrix) = Flux.Tracker.track(_mulatx, a, x)
-_mulxa(x::AbstractMatrix, a::TrackedArray) = Flux.Tracker.track(_mulxa, x, a)
-_mulxat(x::AbstractMatrix, a::TrackedArray) = Flux.Tracker.track(_mulxat, x, a)
+_mulax(a::TrackedArray, x::AbstractMatVec) = Flux.Tracker.track(_mulax, a, x)
+_mulatx(a::TrackedArray, x::AbstractMatVec) = Flux.Tracker.track(_mulatx, a, x)
+_mulxa(x::AbstractMatVec, a::TrackedArray) = Flux.Tracker.track(_mulxa, x, a)
+_mulxat(x::AbstractMatVec, a::TrackedArray) = Flux.Tracker.track(_mulxat, x, a)
 
 Flux.Tracker.@grad function _mulax(θ::TrackedArray, x)
 	return _mulax(Flux.data(θ), Flux.data(x)) , Δ -> (_∇mulax(Flux.data(θ), Flux.data(Δ), Flux.data(x)), _mulatx(Flux.data(θ), Flux.data(Δ)))
