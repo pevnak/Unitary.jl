@@ -1,6 +1,6 @@
 using Unitary, Test, LinearAlgebra, Flux
-using Unitary: UnitaryMatrix, _∇mulax, _mulax, _mulatx, _mulxa, _mulxat
-using Flux.Tracker: Params
+using Unitary: UnitaryMatrix, _∇mulax, _mulax, _mulatx, _mulxa, _mulxat, SVDDense
+using Flux.Tracker: Params, gradient
 
 @testset "Testing multiplication and transposed" begin
 	a = UnitaryMatrix([1])
@@ -64,9 +64,29 @@ end
 	end
 end
 
-@testset "Jacobian" begin 
-	a = UnitaryMatrix([1.0])
-	x = randn(2, 1)
-	Flux.Tracker.jacobian(x -> a * x, x)
+@testset "This is a reminder to properly test the transposition and friends" begin
+	a = UnitaryMatrix(param(rand(1)))
+	for x in [param(rand(2,1)), rand(2,1), transpose(rand(1,2))]
+		a * x
+	end
 end
 
+@testset "Testing calculation of the Jacobian"
+	jacobian(f, x) = vcat([transpose(Flux.data(gradient(x -> f(x)[i], x)[1])) for i in 1:length(x)]...)
+
+	m = SVDDense(UnitaryMatrix(param(rand(1))), 
+		param(rand(2)),
+		UnitaryMatrix(param(rand(1))),
+		param(rand(2)),
+		identity)
+
+	x = randn(2,1)
+	@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
+
+	m = SVDDense(UnitaryMatrix(param(rand(1))), 
+		param(rand(2)),
+		UnitaryMatrix(param(rand(1))),
+		param(rand(2)),
+		selu)
+	@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
+end
