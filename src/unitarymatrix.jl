@@ -32,7 +32,7 @@ LinearAlgebra.transpose(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
 
 
 *(a::UnitaryMatrix, x) = _mulax(a.θ, x)
-_mulax(θ, x) = _mulax((sin(θ[1]), cos(θ[1])), x)
+_mulax(θ::Vector, x::Mat) = _mulax((sin(θ[1]), cos(θ[1])), x)
 
 *(a::TransposedUnitaryMatrix, x::AbstractMatrix) = _mulatx(a.parent.θ, x)
 *(a::TransposedUnitaryMatrix, x::AbstractVector) = _mulatx(a.parent.θ, x)

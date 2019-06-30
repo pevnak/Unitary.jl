@@ -1,6 +1,6 @@
 using Unitary, Test, LinearAlgebra, Flux
 using Unitary: UnitaryMatrix, _∇mulax, _mulax, _mulatx, _mulxa, _mulxat, SVDDense
-using Flux.Tracker: Params, gradient
+using Flux.Tracker: Params, gradient, ngradient
 
 @testset "Testing multiplication and transposed" begin
 	a = UnitaryMatrix([1])
@@ -34,15 +34,15 @@ end
 		#testing gradient of a * x with respect to x and parameters of a
 		grads = Flux.Tracker.gradient(() -> sum(sin.(a * px)), ps)
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
-		@test isapprox(∇x, Flux.Tracker.ngradient(x -> sum(sin.(Flux.data(a) * x)), x)[1], atol = 1e-6)
-		@test isapprox(∇θ, Flux.Tracker.ngradient(θ -> sum(sin.(_mulax(θ, x))), θ)[1], atol = 1e-6)
+		@test isapprox(∇x, ngradient(x -> sum(sin.(Flux.data(a) * x)), x)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulax(θ, x))), θ)[1], atol = 1e-6)
 
 		#testing gradient of transpose(a) * x with respect to x and parameters of a
 		at = transpose(a)
 		grads = Flux.Tracker.gradient(() -> sum(sin.(at * px)), ps)
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
-		@test isapprox(∇x, Flux.Tracker.ngradient(x -> sum(sin.(Flux.data(at) * x)), x)[1], atol = 1e-6)
-		@test isapprox(∇θ, Flux.Tracker.ngradient(θ -> sum(sin.(_mulatx(θ, x))), θ)[1], atol = 1e-6)
+		@test isapprox(∇x, ngradient(x -> sum(sin.(Flux.data(at) * x)), x)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulatx(θ, x))), θ)[1], atol = 1e-6)
 	end
 
 	for x in [rand(10, 2),rand(1, 2)]
@@ -52,15 +52,15 @@ end
 		#testing gradient of a * x with respect to x and parameters of a
 		grads = Flux.Tracker.gradient(() -> sum(sin.(px * a)), ps)
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
-		@test isapprox(∇x, Flux.Tracker.ngradient(x -> sum(sin.(x * Flux.data(a) )), x)[1], atol = 1e-6)
-		@test isapprox(∇θ, Flux.Tracker.ngradient(θ -> sum(sin.(_mulxa(x, θ))), θ)[1], atol = 1e-6)
+		@test isapprox(∇x, ngradient(x -> sum(sin.(x * Flux.data(a) )), x)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulxa(x, θ))), θ)[1], atol = 1e-6)
 
 		#testing gradient of transpose(a) * x with respect to x and parameters of a
 		at = transpose(a);
 		grads = Flux.Tracker.gradient(() -> sum(sin.(px * at)), ps)
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
-		@test isapprox(∇x, Flux.Tracker.ngradient(x -> sum(sin.(x * Flux.data(at) )), x)[1], atol = 1e-6)
-		@test isapprox(∇θ, Flux.Tracker.ngradient(θ -> sum(sin.(_mulxat(x, θ))), θ)[1], atol = 1e-6)
+		@test isapprox(∇x, ngradient(x -> sum(sin.(x * Flux.data(at) )), x)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulxat(x, θ))), θ)[1], atol = 1e-6)
 	end
 end
 
@@ -71,22 +71,24 @@ end
 	end
 end
 
-@testset "Testing calculation of the Jacobian"
+@testset "Testing calculation of the Jacobian" begin
 	jacobian(f, x) = vcat([transpose(Flux.data(gradient(x -> f(x)[i], x)[1])) for i in 1:length(x)]...)
+	for σ in [identity, selu]
+		m = SVDDense(σ)
 
-	m = SVDDense(UnitaryMatrix(param(rand(1))), 
-		param(rand(2)),
-		UnitaryMatrix(param(rand(1))),
-		param(rand(2)),
-		identity)
+		x = randn(2,1)
+		@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
+	end
+end
 
-	x = randn(2,1)
-	@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
-
-	m = SVDDense(UnitaryMatrix(param(rand(1))), 
-		param(rand(2)),
-		UnitaryMatrix(param(rand(1))),
-		param(rand(2)),
-		selu)
-	@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
+@testset "Gradient of the likelihood" begin
+	m = SVDDense(selu)
+	function lkl(m, x)
+		x, l = m((x,0))
+		exp.(- sum(x.^2, dims = 1)) .+ l
+	end
+	x = randn(2,10)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], ngradient(x -> Flux.data(sum(lkl(m, x))), x)[1], atol = 1e-6)
+	m = Chain(SVDDense(selu), SVDDense(selu), SVDDense(identity))
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], ngradient(x -> Flux.data(sum(lkl(m, x))), x)[1], atol = 1e-5)
 end
