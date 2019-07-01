@@ -23,7 +23,7 @@ end
 
 
 @testset "Testing integration with Flux" begin
-	for x in [randn(2), randn(2, 10)]
+	for x in [randn(2), randn(2, 10), transpose(randn(10, 2)), transpose(randn(1, 2))]
 		θ = [1.0]
 		pθ = param(θ)
 		a = UnitaryMatrix(pθ)
@@ -38,14 +38,14 @@ end
 		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulax(θ, x))), θ)[1], atol = 1e-6)
 
 		#testing gradient of transpose(a) * x with respect to x and parameters of a
-		at = transpose(a)
+		at = transpose(a);
 		grads = Flux.Tracker.gradient(() -> sum(sin.(at * px)), ps)
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
 		@test isapprox(∇x, ngradient(x -> sum(sin.(Flux.data(at) * x)), x)[1], atol = 1e-6)
 		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulatx(θ, x))), θ)[1], atol = 1e-6)
 	end
 
-	for x in [rand(10, 2),rand(1, 2)]
+	for x in [rand(10, 2), rand(1, 2), transpose(rand(2,10)), transpose(rand(2)), transpose(rand(2,1))]
 		px = param(x)
 		ps = Params(params(a))
 		push!(ps, px)
@@ -61,13 +61,6 @@ end
 		∇θ, ∇x = Flux.data(grads[pθ]), Flux.data(grads[px])
 		@test isapprox(∇x, ngradient(x -> sum(sin.(x * Flux.data(at) )), x)[1], atol = 1e-6)
 		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulxat(x, θ))), θ)[1], atol = 1e-6)
-	end
-end
-
-@testset "This is a reminder to properly test the transposition and friends" begin
-	a = UnitaryMatrix(param(rand(1)))
-	for x in [param(rand(2,1)), rand(2,1), transpose(rand(1,2))]
-		a * x
 	end
 end
 
