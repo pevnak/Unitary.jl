@@ -5,7 +5,7 @@ end
 
 const TransposedUnitaryMatrix = Transpose{X,A} where {X, A<:UnitaryMatrix}
 const TransposedVector = Transpose{X,A} where {X, A<: AbstractVector}
-
+const TransposedTracked = Transpose{Tracker.TrackedReal{T} where {T},UnitaryMatrix}
 
 Flux.param(a::UnitaryMatrix) = UnitaryMatrix(param(a.θ))
 Flux.@treelike(UnitaryMatrix)

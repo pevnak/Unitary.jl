@@ -46,6 +46,9 @@ end
 	end
 
 	for x in [rand(10, 2), rand(1, 2), transpose(rand(2,10)), transpose(rand(2)), transpose(rand(2,1))]
+		θ = [1.0]
+		pθ = param(θ)
+		a = UnitaryMatrix(pθ)
 		px = param(x)
 		ps = Params(params(a))
 		push!(ps, px)
@@ -70,7 +73,7 @@ end
 		m = SVDDense(σ)
 
 		x = randn(2,1)
-		@test log(abs(det(jacobian(m, x)))) ≈ Flux.data(m((x,0))[2])[1]
+		@test isapprox(log(abs(det(jacobian(m, x)))), Flux.data(m((x,0))[2])[1], atol = 1e-4)
 	end
 end
 
