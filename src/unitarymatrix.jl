@@ -29,6 +29,8 @@ Base.length(a::UnitaryMatrix) = 4
 Flux.data(a::UnitaryMatrix) = UnitaryMatrix(Flux.data(a.θ))
 Flux.data(a::TransposedUnitaryMatrix) = transpose(UnitaryMatrix(Flux.data(a.parent.θ)))
 LinearAlgebra.transpose(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
+Base.inv(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
+Base.inv(a::TransposedUnitaryMatrix) = transpose(a)
 
 
 *(a::UnitaryMatrix, x) = _mulax(a.θ, x)
