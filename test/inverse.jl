@@ -1,7 +1,7 @@
 using Unitary, Test, LinearAlgebra, Flux
-using Unitary: UnitaryMatrix, SVDDense
+using Unitary: UnitaryMatrix, SVDDense, invselu
 
-@testset "Testing that transposed unitary matrix is its inverse" begin
+@testset "Is transposed unitary matrix its inverse?" begin
 	a = UnitaryMatrix([1])
 	at = transpose(a);
 	for x in [rand(2), rand(2,10)]
@@ -18,12 +18,22 @@ using Unitary: UnitaryMatrix, SVDDense
 	@test inv(inv(a)) == a
 end
 
-@testset "Testing that I can inverse SVDDense" begin
-	m = SVDDense(identity)
-	mi = inv(m)
-	@test inv(mi) == m
+@testset "Inversions of activation function" begin
+	for f in [identity, selu]
+		@test inv(f)(f(1)) ≈ 1
+		@test inv(f)(f(-1)) ≈ -1
+		@test inv(inv(f)) == f
+	end
+end
 
-	for x in [rand(2), rand(2,10), transpose(rand(10, 2))]
-		@test Flux.data(mi(m(x))) ≈ x
+@testset "Can I invert SVDDense" begin
+	for f in [identity, selu]
+		m = SVDDense(f)
+		mi = inv(m)
+		@test inv(mi) == m
+
+		for x in [rand(2), rand(2,10), transpose(rand(10, 2))]
+			@test Flux.data(mi(m(x))) ≈ x
+		end
 	end
 end
