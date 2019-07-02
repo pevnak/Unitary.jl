@@ -26,9 +26,8 @@ end
 	end
 end
 
-@testset "Can I invert SVDDense" begin
-	for f in [identity, selu]
-		m = SVDDense(f)
+@testset "Can I invert SVDDense and its chain" begin
+	for m in [SVDDense(identity), SVDDense(selu), Chain(SVDDense(selu), SVDDense(selu), SVDDense(identity))]
 		mi = inv(m)
 		@test inv(mi) == m
 
