@@ -5,10 +5,13 @@ end
 
 const TransposedUnitaryMatrix = Transpose{X,A} where {X, A<:UnitaryMatrix}
 const TransposedVector = Transpose{X,A} where {X, A<: AbstractVector}
-const TransposedTracked = Transpose{Tracker.TrackedReal{T} where {T},UnitaryMatrix}
 
 Flux.param(a::UnitaryMatrix) = UnitaryMatrix(param(a.θ))
 Flux.@treelike(UnitaryMatrix)
+@adjoint UnitaryMatrix(θ) = UnitaryMatrix(θ), Δ -> (UnitaryMatrix(Δ),)
+
+
+# @adjoint Base.getfield(a::UnitaryMatrix, i) = (getproperty(a,i), Δ -> (UnitaryMatrix(Δ),)
 
 
 """
@@ -18,7 +21,7 @@ Flux.@treelike(UnitaryMatrix)
 """
 function Base.Matrix(a::UnitaryMatrix{T}) where {T<:Vector}
 	θ = a.θ[1]
-	[cos(θ)  (- sin(θ)); sin(θ) cos(θ)]
+	[cos(θ) (- sin(θ)); sin(θ) cos(θ)]
 end
 
 
@@ -26,25 +29,36 @@ Base.size(a::UnitaryMatrix) = (2,2)
 Base.size(a::UnitaryMatrix, i::Int) = (i, i)
 Base.eltype(a::UnitaryMatrix) = eltype(a.θ)
 Base.length(a::UnitaryMatrix) = 4
-Flux.data(a::UnitaryMatrix) = UnitaryMatrix(Flux.data(a.θ))
-Flux.data(a::TransposedUnitaryMatrix) = transpose(UnitaryMatrix(Flux.data(a.parent.θ)))
+Base.length(a::TransposedUnitaryMatrix) = 4
 LinearAlgebra.transpose(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
 Base.inv(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
 Base.inv(a::TransposedUnitaryMatrix) = transpose(a)
+Base.display(a::UnitaryMatrix) = print("UnitaryMatrix{$(eltype(a.θ))} [$(a.θ[1])]")
+Base.display(a::TransposedUnitaryMatrix) = print("TransposedUnitaryMatrix{$(eltype(a.parent.θ))} [$(a.parent.θ[1])]")
 
 
-*(a::UnitaryMatrix, x) = _mulax(a.θ, x)
-*(x, a::UnitaryMatrix) = _mulxa(x, a.θ)
-for t in [:TransposedMatVec, :TrackedMatrix, :TrackedVector]
-	@eval *(a::TransposedUnitaryMatrix, x::$t) = _mulatx(a.parent.θ, x)
-	@eval *(x::$t, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+*(a::UnitaryMatrix, x::TransposedMatVec) = _mulax(a.θ, x)
+*(x::TransposedMatVec, a::UnitaryMatrix) = _mulxa(x, a.θ)
+*(a::TransposedUnitaryMatrix, x::TransposedMatVec) = _mulatx(a.parent.θ, x)
+*(x::TransposedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+
+
+@adjoint function *(a::UnitaryMatrix, x::TransposedMatVec)
+	return _mulax(a.θ, x) , Δ -> (UnitaryMatrix(_∇mulax(a.θ, Δ, x)), _mulatx(a.θ, Δ))
 end
-# *(a::TransposedUnitaryMatrix, x::TrackedMatrix) = _mulatx(a.parent.θ, x)
-# *(a::TransposedUnitaryMatrix, x::TrackedVector) = _mulatx(a.parent.θ, x)
 
-# *(x::TransposedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
-# *(x::TrackedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+@adjoint function *(x::TransposedMatVec, a::UnitaryMatrix)
+	return _mulxa(x, a.θ) , Δ -> (_mulxat(Δ, a.θ), UnitaryMatrix(_∇mulxa(a.θ, Δ, x)))
+end
 
+@adjoint function *(a::TransposedUnitaryMatrix, x::TransposedMatVec)
+  return _mulatx(a.parent.θ, x) , Δ -> (transpose(UnitaryMatrix(_∇mulatx(a.parent.θ, Δ, x))), _mulax(a.parent.θ, Δ))
+end
+
+
+@adjoint function *(x::TransposedMatVec, a::TransposedUnitaryMatrix)
+  return _mulxat(x, a.parent.θ) , Δ -> (_mulxa(Δ, a.parent.θ), transpose(UnitaryMatrix(_∇mulxat(a.parent.θ, Δ, x))))
+end
 
 
 """
@@ -52,8 +66,8 @@ end
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-_mulax(θ::Vector, x::TransposedMatVec) = _mulax((sin(θ[1]), cos(θ[1])), x)
-function _mulax(sincosθ::Tuple, x::TransposedMatVec)
+_mulax(θ::Vector, x) = _mulax((sin(θ[1]), cos(θ[1])), x)
+function _mulax(sincosθ::Tuple, x)
 	sinθ, cosθ = sincosθ
 	@assert size(x, 1) == 2
 	o = similar(x)
@@ -69,8 +83,8 @@ end
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-_∇mulax(θ, Δ, x) = _∇mulax(Δ, (sin(θ[1]), cos(θ[1])), x)
-function _∇mulax(Δ, sincosθ::Tuple, x::MatVec)
+_∇mulax(θ::Vector, Δ, x) = _∇mulax((sin(θ[1]), cos(θ[1])), Δ,  x)
+function _∇mulax(sincosθ::Tuple, Δ,  x)
 	sinθ, cosθ = sincosθ
 	∇θ = similar(x, 1)
 	fill!(∇θ, 0)
@@ -80,13 +94,13 @@ function _∇mulax(Δ, sincosθ::Tuple, x::MatVec)
 	end
 	∇θ
 end
-_mulatx(θ::Vector, x::TransposedMatVec) = _mulax((- sin(θ[1]), cos(θ[1])), x)
-_∇mulatx(θ::Vector, Δ::TransposedMatVec, x::TransposedMatVec) = _∇mulax(Δ, (sin(θ[1]), - cos(θ[1])), x)
+_mulatx(θ::Vector, x) = _mulax((- sin(θ[1]), cos(θ[1])), x)
+_∇mulatx(θ::Vector, Δ, x) = _∇mulax((sin(θ[1]), - cos(θ[1])), Δ, x)
 
 
-_mulxa(x::TransposedMatVec, θ::Vector) = _mulxa(x, (sin(θ[1]), cos(θ[1])))
-_mulxat(x::TransposedMatVec, θ::Vector) = _mulxa(x, (- sin(θ[1]), cos(θ[1])))
-function _mulxa(x::TransposedMatVec, sincosθ::Tuple)
+_mulxa(x, θ::Vector) = _mulxa(x, (sin(θ[1]), cos(θ[1])))
+_mulxat(x, θ::Vector) = _mulxa(x, (- sin(θ[1]), cos(θ[1])))
+function _mulxa(x, sincosθ::Tuple)
 	sinθ, cosθ = sincosθ 
 	@assert size(x, 2) == 2
 	o = similar(x)
@@ -97,9 +111,9 @@ function _mulxa(x::TransposedMatVec, sincosθ::Tuple)
 	o
 end
 
-_∇mulxa(θ::Vector, Δ::TransposedMatVec, x::TransposedMatVec) = _∇mulxa(Δ, x, (sin(θ[1]), cos(θ[1])))
-_∇mulxat(θ::Vector, Δ::TransposedMatVec, x::TransposedMatVec) = _∇mulxa(Δ, x, (sin(θ[1]), - cos(θ[1])))
-function _∇mulxa(Δ::TransposedMatVec, x::TransposedMatVec, sincosθ::Tuple)
+_∇mulxa(θ::Vector, Δ, x) = _∇mulxa(Δ, x, (sin(θ[1]), cos(θ[1])))
+_∇mulxat(θ::Vector, Δ, x) = _∇mulxa(Δ, x, (sin(θ[1]), - cos(θ[1])))
+function _∇mulxa(Δ, x, sincosθ::Tuple)
 	sinθ, cosθ = sincosθ
 	∇θ = similar(x, 1)
 	fill!(∇θ, 0)
@@ -111,40 +125,20 @@ function _∇mulxa(Δ::TransposedMatVec, x::TransposedMatVec, sincosθ::Tuple)
 end
 
 
-_mulax(a::Vector, x::TrackedMatVec) = Flux.Tracker.track(_mulax, a, x)
-_mulax(a::TrackedVector, x::TrackedMatVec) = Flux.Tracker.track(_mulax, a, x)
-_mulax(a::TrackedVector, x::TransposedMatVec) = Flux.Tracker.track(_mulax, a, x)
 
-_mulatx(a::TrackedVector, x::TransposedMatVec) = Flux.Tracker.track(_mulatx, a, x)
-_mulatx(a::Vector, x::TrackedMatVec) = Flux.Tracker.track(_mulatx, a, x)
-_mulatx(a::TrackedVector, x::TrackedMatVec) = Flux.Tracker.track(_mulatx, a, x)
 
-_mulxa(x::TransposedMatVec, a::TrackedVector) = Flux.Tracker.track(_mulxa, x, a)
-_mulxa(x::TrackedMatVec, a::TrackedVector) = Flux.Tracker.track(_mulxa, x, a)
-_mulxa(x::TrackedMatVec, a::Vector) = Flux.Tracker.track(_mulxa, x, a)
-
-_mulxat(x::TransposedMatVec, a::TrackedVector) = Flux.Tracker.track(_mulxat, x, a)
-_mulxat(x::TrackedMatVec, a::TrackedVector) = Flux.Tracker.track(_mulxat, x, a)
-_mulxat(x::TrackedMatVec, a::Vector) = Flux.Tracker.track(_mulxat, x, a)
-
-Flux.Tracker.@grad function _mulax(θ::TrackedVector, x::AbstractArray)
-	return _mulax(Flux.data(θ), Flux.data(x)) , Δ -> (_∇mulax(Flux.data(θ), Flux.data(Δ), Flux.data(x)), _mulatx(Flux.data(θ), Flux.data(Δ)))
-end
-Flux.Tracker.@grad function _mulax(θ::Vector, x::TrackedMatVec)
-	return _mulax(Flux.data(θ), Flux.data(x)) , Δ -> (_∇mulax(Flux.data(θ), Flux.data(Δ), Flux.data(x)), _mulatx(Flux.data(θ), Flux.data(Δ)))
-end
-Flux.Tracker.@grad function _mulatx(θ::TrackedVector, x::TransposedMatVec)
-  return _mulatx(Flux.data(θ), Flux.data(x)) , Δ -> (_∇mulatx(Flux.data(θ), Flux.data(Δ), Flux.data(x)), _mulax(Flux.data(θ), Flux.data(Δ)))
+@adjoint function _mulax(θ, x)
+	return _mulax(θ, x) , Δ -> (_∇mulax(Δ, θ, x), _mulatx(θ, Δ))
 end
 
-Flux.Tracker.@grad function _mulatx(θ::TrackedVector, x::TrackedMatVec)
-  return _mulatx(Flux.data(θ), Flux.data(x)) , Δ -> (_∇mulatx(Flux.data(θ), Flux.data(Δ), Flux.data(x)), _mulax(Flux.data(θ), Flux.data(Δ)))
+@adjoint function _mulatx(θ, x)
+  return _mulatx(θ, x) , Δ -> (_∇mulatx(θ, Δ, x), _mulax(θ, Δ))
 end
 
-Flux.Tracker.@grad function _mulxa(x, θ::TrackedVector)
-	return _mulxa(Flux.data(x), Flux.data(θ),) , Δ -> (_mulxat(Flux.data(Δ), Flux.data(θ)), _∇mulxa(Flux.data(θ), Flux.data(Δ), Flux.data(x)))
+@adjoint function _mulxa(x, θ)
+	return _mulxa(x, θ,) , Δ -> (_mulxat(Δ, θ), _∇mulxa(θ, Δ, x))
 end
-Flux.Tracker.@grad function _mulxat(x, θ::TrackedVector)
-  return _mulxat(Flux.data(x), Flux.data(θ)) , Δ -> (_mulxa(Flux.data(Δ), Flux.data(θ)), _∇mulxat(Flux.data(θ), Flux.data(Δ), Flux.data(x)))
+
+@adjoint function _mulxat(x, θ)
+  return _mulxat(x, θ) , Δ -> (_mulxa(Δ, θ), _∇mulxat(θ, Δ, x))
 end
-# (Δ * transpose(b), transpose(a) * Δ)
