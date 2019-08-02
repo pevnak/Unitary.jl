@@ -10,9 +10,6 @@ end
 Flux.@treelike(UnitaryMatrix)
 Flux.@treelike(TransposedUnitaryMatrix)
 
-@adjoint UnitaryMatrix(θ) = UnitaryMatrix(θ), Δ -> (UnitaryMatrix(Δ),)
-@adjoint TransposedUnitaryMatrix(θ) = TransposedUnitaryMatrix(θ), Δ -> (TransposedUnitaryMatrix(Δ),)
-
 
 # @adjoint Base.getfield(a::UnitaryMatrix, i) = (getproperty(a,i), Δ -> (UnitaryMatrix(Δ),)
 
@@ -48,22 +45,25 @@ Base.zero(a::TransposedUnitaryMatrix) = TransposedUnitaryMatrix(zero(a.θ))
 *(x::TransposedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.θ)
 
 
-@adjoint function *(a::UnitaryMatrix, x::TransposedMatVec)
-	return _mulax(a.θ, x) , Δ -> (UnitaryMatrix(_∇mulax(a.θ, Δ, x)), _mulatx(a.θ, Δ))
-end
+# @adjoint UnitaryMatrix(θ) = UnitaryMatrix(θ), Δ -> (UnitaryMatrix(Δ),)
+# @adjoint TransposedUnitaryMatrix(θ) = TransposedUnitaryMatrix(θ), Δ -> (TransposedUnitaryMatrix(Δ),)
 
-@adjoint function *(x::TransposedMatVec, a::UnitaryMatrix)
-	return _mulxa(x, a.θ) , Δ -> (_mulxat(Δ, a.θ), UnitaryMatrix(_∇mulxa(a.θ, Δ, x)))
-end
+# @adjoint function *(a::UnitaryMatrix, x::TransposedMatVec)
+# 	return _mulax(a.θ, x) , Δ -> (UnitaryMatrix(_∇mulax(a.θ, Δ, x)), _mulatx(a.θ, Δ))
+# end
 
-@adjoint function *(a::TransposedUnitaryMatrix, x::TransposedMatVec)
-  return _mulatx(a.θ, x) , Δ -> (transpose(UnitaryMatrix(_∇mulatx(a.θ, Δ, x))), _mulax(a.θ, Δ))
-end
+# @adjoint function *(x::TransposedMatVec, a::UnitaryMatrix)
+# 	return _mulxa(x, a.θ) , Δ -> (_mulxat(Δ, a.θ), UnitaryMatrix(_∇mulxa(a.θ, Δ, x)))
+# end
+
+# @adjoint function *(a::TransposedUnitaryMatrix, x::TransposedMatVec)
+#   return _mulatx(a.θ, x) , Δ -> (transpose(UnitaryMatrix(_∇mulatx(a.θ, Δ, x))), _mulax(a.θ, Δ))
+# end
 
 
-@adjoint function *(x::TransposedMatVec, a::TransposedUnitaryMatrix)
-  return _mulxat(x, a.θ) , Δ -> (_mulxa(Δ, a.θ), transpose(UnitaryMatrix(_∇mulxat(a.θ, Δ, x))))
-end
+# @adjoint function *(x::TransposedMatVec, a::TransposedUnitaryMatrix)
+#   return _mulxat(x, a.θ) , Δ -> (_mulxa(Δ, a.θ), transpose(UnitaryMatrix(_∇mulxat(a.θ, Δ, x))))
+# end
 
 
 """
@@ -129,11 +129,8 @@ function _∇mulxa(Δ, x, sincosθ::Tuple)
 	∇θ
 end
 
-
-
-
 @adjoint function _mulax(θ, x)
-	return _mulax(θ, x) , Δ -> (_∇mulax(Δ, θ, x), _mulatx(θ, Δ))
+	return _mulax(θ, x) , Δ -> (_∇mulax(θ, Δ, x), _mulatx(θ, Δ))
 end
 
 @adjoint function _mulatx(θ, x)
