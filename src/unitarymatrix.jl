@@ -29,6 +29,7 @@ Base.size(a::UnitaryMatrix) = (2,2)
 Base.size(a::UnitaryMatrix, i::Int) = (i, i)
 
 Base.eltype(a::UnitaryMatrix) = eltype(a.θ)
+Base.eltype(a::TransposedUnitaryMatrix) = eltype(a.θ)
 LinearAlgebra.transpose(a::UnitaryMatrix) = TransposedUnitaryMatrix(a.θ)
 LinearAlgebra.transpose(a::TransposedUnitaryMatrix) = UnitaryMatrix(a.θ)
 Base.inv(a::UnitaryMatrix) = transpose(a)
@@ -37,6 +38,16 @@ Base.show(io::IO, a::UnitaryMatrix) = print(io, "UnitaryMatrix ",a.θ)
 Base.show(io::IO, a::TransposedUnitaryMatrix) = print(io, "UnitaryMatrixᵀ ",a.θ)
 Base.zero(a::UnitaryMatrix) = UnitaryMatrix(zero(a.θ))
 Base.zero(a::TransposedUnitaryMatrix) = TransposedUnitaryMatrix(zero(a.θ))
+
+
+Zygote.@adjoint function LinearAlgebra.transpose(x::TransposedUnitaryMatrix)
+  return transpose(x), Δ -> (TransposedUnitaryMatrix(Δ.θ),)
+end
+
+Zygote.@adjoint function LinearAlgebra.transpose(x::UnitaryMatrix)
+  return transpose(x), Δ -> (UnitaryMatrix(Δ.θ),)
+end
+
 
 
 *(a::UnitaryMatrix, x::TransposedMatVec) = _mulax(a.θ, x)

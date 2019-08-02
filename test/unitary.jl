@@ -16,7 +16,6 @@ function ngradient(f, xs::AbstractArray...)
   return grads
 end
 
-
 @testset "Testing multiplication and transposition" begin
 	a = UnitaryMatrix([1])
 	ad = Matrix(a)
@@ -40,36 +39,36 @@ end
 	for x in [randn(2), randn(2, 10), transpose(randn(10, 2)), transpose(randn(1, 2))]
 		θ = [1.0]
 		a = UnitaryMatrix(θ)
-		ps = Params([a, x])
+		ps = Params([θ, x])
 
 		#testing gradient of a * x with respect to x and parameters of a
 		grads = gradient(() -> sum(sin.(a * x)), ps)
-		∇θ, ∇x = grads[a], grads[x]
+		∇θ, ∇x = grads[θ], grads[x]
 		@test isapprox(∇x, ngradient(x -> sum(sin.(a * x)), x)[1], atol = 1e-6)
-		@test isapprox(∇θ.θ, ngradient(θ -> sum(sin.(_mulax(θ, x))), θ)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulax(θ, x))), θ)[1], atol = 1e-6)
 
 		#testing gradient of transpose(a) * x with respect to x and parameters of a
-		grads =gradient(() -> sum(sin.(transpose(a) * x)), ps)
-		∇θ, ∇x = grads[a], grads[x]
+		grads = gradient(() -> sum(sin.(transpose(a) * x)), ps)
+		∇θ, ∇x = grads[θ], grads[x]
 		@test isapprox(∇x, ngradient(x -> sum(sin.(transpose(a) * x)), x)[1], atol = 1e-6)
-		@test isapprox(∇θ.θ, ngradient(θ -> sum(sin.(_mulatx(θ, x))), θ)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulatx(θ, x))), θ)[1], atol = 1e-6)
 	end
 
 	for x in [rand(10, 2), rand(1, 2), transpose(rand(2,10)), transpose(rand(2)), transpose(rand(2,1))]
 		θ = [1.0]
 		a = UnitaryMatrix(θ)
-		ps = Params([a, x])
+		ps = Params([θ, x])
 		#testing gradient of a * x with respect to x and parameters of a
 		grads =gradient(() -> sum(sin.(x * a)), ps)
-		∇θ, ∇x = grads[a], grads[x]
+		∇θ, ∇x = grads[θ], grads[x]
 		@test isapprox(∇x, ngradient(x -> sum(sin.(x * a)), x)[1], atol = 1e-6)
-		@test isapprox(∇θ.θ, ngradient(θ -> sum(sin.(_mulxa(x, θ))), θ)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulxa(x, θ))), θ)[1], atol = 1e-6)
 
 		#testing gradient of transpose(a) * x with respect to x and parameters of a
 		grads = gradient(() -> sum(sin.(x * transpose(a))), ps)
-		∇θ, ∇x = grads[a], grads[x]
+		∇θ, ∇x = grads[θ], grads[x]
 		@test isapprox(∇x, ngradient(x -> sum(sin.(x * transpose(a) )), x)[1], atol = 1e-6)
-		@test isapprox(∇θ.θ, ngradient(θ -> sum(sin.(_mulxat(x, θ))), θ)[1], atol = 1e-6)
+		@test isapprox(∇θ, ngradient(θ -> sum(sin.(_mulxat(x, θ))), θ)[1], atol = 1e-6)
 	end
 end
 
