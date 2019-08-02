@@ -3,12 +3,15 @@ struct UnitaryMatrix{T}
 	θ::T	
 end
 
-const TransposedUnitaryMatrix = Transpose{X,A} where {X, A<:UnitaryMatrix}
-const TransposedVector = Transpose{X,A} where {X, A<: AbstractVector}
+struct TransposedUnitaryMatrix{T}
+	θ::T	
+end
 
-Flux.param(a::UnitaryMatrix) = UnitaryMatrix(param(a.θ))
 Flux.@treelike(UnitaryMatrix)
+Flux.@treelike(TransposedUnitaryMatrix)
+
 @adjoint UnitaryMatrix(θ) = UnitaryMatrix(θ), Δ -> (UnitaryMatrix(Δ),)
+@adjoint TransposedUnitaryMatrix(θ) = TransposedUnitaryMatrix(θ), Δ -> (TransposedUnitaryMatrix(Δ),)
 
 
 # @adjoint Base.getfield(a::UnitaryMatrix, i) = (getproperty(a,i), Δ -> (UnitaryMatrix(Δ),)
@@ -27,20 +30,22 @@ end
 
 Base.size(a::UnitaryMatrix) = (2,2)
 Base.size(a::UnitaryMatrix, i::Int) = (i, i)
+
 Base.eltype(a::UnitaryMatrix) = eltype(a.θ)
-Base.length(a::UnitaryMatrix) = 4
-Base.length(a::TransposedUnitaryMatrix) = 4
-LinearAlgebra.transpose(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
-Base.inv(a::UnitaryMatrix) = LinearAlgebra.Transpose(a)
+LinearAlgebra.transpose(a::UnitaryMatrix) = TransposedUnitaryMatrix(a.θ)
+LinearAlgebra.transpose(a::TransposedUnitaryMatrix) = UnitaryMatrix(a.θ)
+Base.inv(a::UnitaryMatrix) = transpose(a)
 Base.inv(a::TransposedUnitaryMatrix) = transpose(a)
-Base.display(a::UnitaryMatrix) = print("UnitaryMatrix{$(eltype(a.θ))} [$(a.θ[1])]")
-Base.display(a::TransposedUnitaryMatrix) = print("TransposedUnitaryMatrix{$(eltype(a.parent.θ))} [$(a.parent.θ[1])]")
+Base.show(io::IO, a::UnitaryMatrix) = print(io, "UnitaryMatrix ",a.θ)
+Base.show(io::IO, a::TransposedUnitaryMatrix) = print(io, "UnitaryMatrixᵀ ",a.θ)
+Base.zero(a::UnitaryMatrix) = UnitaryMatrix(zero(a.θ))
+Base.zero(a::TransposedUnitaryMatrix) = TransposedUnitaryMatrix(zero(a.θ))
 
 
 *(a::UnitaryMatrix, x::TransposedMatVec) = _mulax(a.θ, x)
 *(x::TransposedMatVec, a::UnitaryMatrix) = _mulxa(x, a.θ)
-*(a::TransposedUnitaryMatrix, x::TransposedMatVec) = _mulatx(a.parent.θ, x)
-*(x::TransposedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.parent.θ)
+*(a::TransposedUnitaryMatrix, x::TransposedMatVec) = _mulatx(a.θ, x)
+*(x::TransposedMatVec, a::TransposedUnitaryMatrix) = _mulxat(x, a.θ)
 
 
 @adjoint function *(a::UnitaryMatrix, x::TransposedMatVec)
@@ -52,12 +57,12 @@ end
 end
 
 @adjoint function *(a::TransposedUnitaryMatrix, x::TransposedMatVec)
-  return _mulatx(a.parent.θ, x) , Δ -> (transpose(UnitaryMatrix(_∇mulatx(a.parent.θ, Δ, x))), _mulax(a.parent.θ, Δ))
+  return _mulatx(a.θ, x) , Δ -> (transpose(UnitaryMatrix(_∇mulatx(a.θ, Δ, x))), _mulax(a.θ, Δ))
 end
 
 
 @adjoint function *(x::TransposedMatVec, a::TransposedUnitaryMatrix)
-  return _mulxat(x, a.parent.θ) , Δ -> (_mulxa(Δ, a.parent.θ), transpose(UnitaryMatrix(_∇mulxat(a.parent.θ, Δ, x))))
+  return _mulxat(x, a.θ) , Δ -> (_mulxa(Δ, a.θ), transpose(UnitaryMatrix(_∇mulxat(a.θ, Δ, x))))
 end
 
 
