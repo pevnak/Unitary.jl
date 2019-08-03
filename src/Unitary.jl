@@ -9,6 +9,7 @@ const MatVec = Union{Matrix, Vector}
 const TransposedMatVec = Union{Matrix, Vector,Transpose{T,Matrix{T}} where T, Transpose{T,Vector{T}} where T}
 
 include("unitarymatrix.jl")
+include("butterfly.jl")
 include("svd.jl")
 
 end # module
