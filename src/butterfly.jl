@@ -70,24 +70,6 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
 
-# # @adjoint function *(a::Butterfly, x::TransposedMatVec)
-# # 	return _mulax(a.θ, x) , Δ -> (Butterfly(_∇mulax(a.θ, Δ, x)), _mulatx(a.θ, Δ))
-# # end
-
-# # @adjoint function *(x::TransposedMatVec, a::Butterfly)
-# # 	return _mulxa(x, a.θ) , Δ -> (_mulxat(Δ, a.θ), Butterfly(_∇mulxa(a.θ, Δ, x)))
-# # end
-
-# # @adjoint function *(a::TransposedButterfly, x::TransposedMatVec)
-# #   return _mulatx(a.θ, x) , Δ -> (transpose(Butterfly(_∇mulatx(a.θ, Δ, x))), _mulax(a.θ, Δ))
-# # end
-
-
-# # @adjoint function *(x::TransposedMatVec, a::TransposedButterfly)
-# #   return _mulxat(x, a.θ) , Δ -> (_mulxa(Δ, a.θ), transpose(Butterfly(_∇mulxat(a.θ, Δ, x))))
-# # end
-
-
 """
 	_mulax(θ::Vector, x::MatVec)
 
@@ -148,18 +130,10 @@ function _∇mulxa(Δ, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1
 	∇θ
 end
 
-# @adjoint function _mulax(θ, x)
-# 	return _mulax(θ, x) , Δ -> (_∇mulax(θ, Δ, x), _mulatx(θ, Δ))
-# end
+@adjoint function _mulax(θs, is, js, x, t)
+	return _mulax(θs, is, js, x, t) , Δ -> (_∇mulax(Δ, θs, is, js, x, t), nothing, nothing, _mulax(θs, is, js, Δ, -t))
+end
 
-# @adjoint function _mulatx(θ, x)
-#   return _mulatx(θ, x) , Δ -> (_∇mulatx(θ, Δ, x), _mulax(θ, Δ))
-# end
-
-# @adjoint function _mulxa(x, θ)
-# 	return _mulxa(x, θ,) , Δ -> (_mulxat(Δ, θ), _∇mulxa(θ, Δ, x))
-# end
-
-# @adjoint function _mulxat(x, θ)
-#   return _mulxat(x, θ) , Δ -> (_mulxa(Δ, θ), _∇mulxat(θ, Δ, x))
-# end
+@adjoint function _mulxa(x, θs, is, js, t)
+	return _mulxa(x, θs, is, js, t) , Δ -> (_mulxa(Δ, θs, is, js, -t), _∇mulxa(Δ, x, θs, is, js, t), nothing, nothing, nothing)
+end

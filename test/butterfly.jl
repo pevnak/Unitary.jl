@@ -1,5 +1,6 @@
-using Unitary, Test, LinearAlgebra
+using Unitary, Test, LinearAlgebra, Flux, Zygote
 using Unitary: Butterfly
+using Flux: Params
 
 
 function ngradient(f, xs::AbstractArray...)
@@ -49,7 +50,7 @@ end
 end
 
 
-@testset "Testing calculation of the gradient with Flux" begin
+@testset "Testing calculation of the gradient" begin
 	for x in [randn(4), randn(4, 10), transpose(randn(10, 4)), transpose(randn(1, 4))]
 		for a in [Butterfly(randn(2), [1,3], [2,4], 4), Butterfly(randn(2), [1,2], [3,4], 4), Butterfly(randn(2), [1,4], [3,2], 4)]
 			Δ = ones(size(x))
@@ -63,6 +64,46 @@ end
 			Δ = ones(size(x))
 			@test isapprox(Unitary._∇mulxa(Δ, x, a.θ, a.i, a.j, 1), ngradient(_θ -> sum(Unitary._mulxa(x, _θ, a.i, a.j, 1)), a.θ)[1], atol = 1e-6)
 			@test isapprox(Unitary._∇mulxa(Δ, x, a.θ, a.i, a.j, -1), ngradient(_θ -> sum(Unitary._mulxa(x, _θ, a.i, a.j, -1)), a.θ)[1], atol = 1e-6)
+		end
+	end
+end
+
+@testset "Testing integration with Flux" begin
+	for x in [randn(4), randn(4, 10), transpose(randn(10, 4)), transpose(randn(1, 4))]
+		θ = randn(2)
+		ps = Params([θ, x])
+		for a in [Butterfly(θ, [1,3], [2,4], 4), Butterfly(θ, [1,2], [3,4], 4), Butterfly(θ, [1,4], [3,2], 4)]
+
+			#testing gradient of a * x with respect to x and parameters of a
+			grads = gradient(() -> sum(sin.(a * x)), ps)
+			∇θ, ∇x = grads[θ], grads[x]
+			@test isapprox(∇x, ngradient(x -> sum(sin.(a * x)), x)[1], atol = 1e-6)
+			@test isapprox(∇θ, ngradient(θ -> sum(sin.(Unitary._mulax(θ, a.i, a.j, x, 1))), θ)[1], atol = 1e-6)
+
+			#testing gradient of transpose(a) * x with respect to x and parameters of a
+			grads = gradient(() -> sum(sin.(transpose(a) * x)), ps)
+			∇θ, ∇x = grads[θ], grads[x]
+			@test isapprox(∇x, ngradient(x -> sum(sin.(transpose(a) * x)), x)[1], atol = 1e-6)
+			@test isapprox(∇θ, ngradient(θ -> sum(sin.(Unitary._mulax(θ, a.i, a.j, x, -1))), θ)[1], atol = 1e-6)
+		end
+	end
+
+	for x in [rand(10, 4), rand(1, 4), transpose(rand(4,10)), transpose(rand(4)), transpose(rand(4,1))]
+		θ = randn(2)
+		a = Butterfly(θ, [1,3], [2,4], 4)
+			for a in [Butterfly(θ, [1,3], [2,4], 4), Butterfly(θ, [1,2], [3,4], 4), Butterfly(θ, [1,4], [3,2], 4)]
+			ps = Params([θ, x])
+			#testing gradient of a * x with respect to x and parameters of a
+			grads =gradient(() -> sum(sin.(x * a)), ps)
+			∇θ, ∇x = grads[θ], grads[x]
+			@test isapprox(∇x, ngradient(x -> sum(sin.(x * a)), x)[1], atol = 1e-6)
+			@test isapprox(∇θ, ngradient(θ -> sum(sin.(Unitary._mulxa(x, θ, a.i, a.j, 1))), θ)[1], atol = 1e-6)
+
+			#testing gradient of transpose(a) * x with respect to x and parameters of a
+			grads = gradient(() -> sum(sin.(x * transpose(a))), ps)
+			∇θ, ∇x = grads[θ], grads[x]
+			@test isapprox(∇x, ngradient(x -> sum(sin.(x * transpose(a) )), x)[1], atol = 1e-6)
+			@test isapprox(∇θ, ngradient(θ -> sum(sin.(Unitary._mulxa(x, θ, a.i, a.j, -1))), θ)[1], atol = 1e-6)
 		end
 	end
 end
