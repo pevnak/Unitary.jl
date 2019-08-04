@@ -42,11 +42,11 @@ Base.size(a::TransposedButterfly,i...) = size(a.parent)
 Base.eltype(a::Butterfly{N,T}) where {N,T} = T
 Base.eltype(a::TransposedButterfly) = eltype(a.parent)
 LinearAlgebra.transpose(a::Butterfly) = TransposedButterfly(a)
-LinearAlgebra.transpose(a::TransposedButterfly) = Butterfly(a.parent)
+LinearAlgebra.transpose(a::TransposedButterfly) = a.parent
 Base.inv(a::Butterfly) = transpose(a)
 Base.inv(a::TransposedButterfly) = transpose(a)
 Base.show(io::IO, a::Butterfly) = print(io, "Butterfly ",a.θ)
-Base.show(io::IO, a::TransposedButterfly) = print(io, "Butterflyᵀ ",a.θ)
+Base.show(io::IO, a::TransposedButterfly) = print(io, "Butterflyᵀ ",a.parent.θ)
 Base.zero(a::Butterfly) = Butterfly(zero(a.θ), a.i, a.j, a.n)
 Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 

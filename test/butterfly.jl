@@ -49,6 +49,17 @@ end
 	@test x * transpose(a) ≈ x * transpose(m)
 end
 
+@testset "inversion" begin
+	for x in [randn(4), randn(4, 10), transpose(randn(10, 4)), transpose(randn(1, 4))]
+		for a in [Butterfly(randn(2), [1,3], [2,4], 4), Butterfly(randn(2), [1,2], [3,4], 4), Butterfly(randn(2), [1,4], [3,2], 4)]
+			@test a * (inv(a) * x) ≈ x
+			@test inv(a) * (a * x) ≈ x
+		end
+	end
+
+	@test inv(inv(a)) == a
+	@test transpose(transpose(a)) == a
+end
 
 @testset "Testing calculation of the gradient" begin
 	for x in [randn(4), randn(4, 10), transpose(randn(10, 4)), transpose(randn(1, 4))]
