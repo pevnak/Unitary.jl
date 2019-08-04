@@ -14,6 +14,8 @@ struct Butterfly{N, T<:Number}
 	end
 end
 
+Butterfly(i, j, n) = Butterfly(2π*rand(length(i)), i, j, n)
+
 struct TransposedButterfly{B<:Butterfly} 
 	parent::B
 end

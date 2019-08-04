@@ -6,14 +6,20 @@ struct SVDDense{U, D, V, B, S}
 	σ::S
 end
 
-Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(m.σ)}")
+Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(length(m.d)), $(m.σ)}")
 
 Flux.@treelike(SVDDense)
 
-SVDDense(σ) = SVDDense(UnitaryMatrix(param(rand(1))), 
-			param(rand(2)),
-			UnitaryMatrix(param(rand(1))),
-			param(rand(2)),
+SVDDense(σ) = SVDDense(UnitaryMatrix(rand(1)), 
+			rand(2),
+			UnitaryMatrix(rand(1)),
+			rand(2),
+			σ)
+
+SVDDense(n, σ) = SVDDense(UnitaryButterfly(n), 
+			rand(n),
+			UnitaryButterfly(n),
+			zeros(n),
 			σ)
 
 
