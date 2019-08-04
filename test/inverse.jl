@@ -27,12 +27,14 @@ end
 end
 
 @testset "Can I invert SVDDense and its chain" begin
-	for m in [SVDDense(identity), SVDDense(selu), Chain(SVDDense(selu), SVDDense(selu), SVDDense(identity))]
-		mi = inv(m)
-		@test inv(mi) == m
+	for d in [2,3,4]
+		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
+			mi = inv(m)
+			@test inv(mi) == m
 
-		for x in [rand(2), rand(2,10), transpose(rand(10, 2))]
-			@test Flux.data(mi(m(x))) ≈ x
+			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
+				@test Flux.data(mi(m(x))) ≈ x
+			end
 		end
 	end
 end

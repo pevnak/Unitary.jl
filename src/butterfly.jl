@@ -78,7 +78,7 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
 function _mulax(θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
-	o = similar(x)
+	o = deepcopy(x)
 	for c in 1:size(x, 2)
 		for k = 1:N
 			θ, i, j = θs[k], is[k], js[k]	
@@ -108,7 +108,7 @@ function _∇mulax(Δ, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1
 end
 
 function _mulxa(x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
-	o = similar(x)
+	o = deepcopy(x)
 	for c in 1:size(x, 1)
 		for k = 1:N
 			θ, i, j = θs[k], is[k], js[k]
