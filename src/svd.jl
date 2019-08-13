@@ -57,8 +57,8 @@ function invselu(x::Real)
   ifelse(x > 0, x/1, log.(1 + x/α))
 end
 
-invtanh(x::Real) = (ln(1 + x) - ln(1 - x)) / 2
-invσ(x::Real) = ln(x) - ln(1 - x)
+invtanh(x::Real) = (log(1 + x) - log(1 - x)) / 2
+invσ(x::Real) = log(x) - log(1 - x)
 
 Base.inv(::typeof(identity)) = identity
 Base.inv(::typeof(NNlib.selu)) = invselu
