@@ -79,11 +79,12 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 """
 function _mulax(θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
 	o = deepcopy(x)
+	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 2)
 		for k = 1:N
-			θ, i, j = θs[k], is[k], js[k]	
-			o[i, c] =  cos(θ) * x[i,c] - t*sin(θ) * x[j,c]
-			o[j, c] =  t*sin(θ) * x[i,c] + cos(θ) * x[j,c]
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			o[i, c] =  cosθ * x[i,c] - t*sinθ * x[j,c]
+			o[j, c] =  t*sinθ * x[i,c] + cosθ * x[j,c]
 		end
 	end
 	o
@@ -96,12 +97,13 @@ end
 """
 function _∇mulax(Δ, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
 	∇θ = similar(θs)
+	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 2)
 		for k = 1:N
-			θ, i, j = θs[k], is[k], js[k]	
-			∇θ[k] +=  Δ[i,c] * (- sin(θ) * x[i,c] - t*cos(θ) * x[j,c])
-			∇θ[k] +=  Δ[j,c] * (  t*cos(θ) * x[i,c] - sin(θ) * x[j,c])
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			∇θ[k] +=  Δ[i,c] * (- sinθ * x[i,c] - t*cosθ * x[j,c])
+			∇θ[k] +=  Δ[j,c] * (  t*cosθ * x[i,c] - sinθ * x[j,c])
 		end
 	end
 	∇θ
@@ -109,11 +111,12 @@ end
 
 function _mulxa(x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
 	o = deepcopy(x)
+	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 1)
 		for k = 1:N
-			θ, i, j = θs[k], is[k], js[k]
-			o[c, i] =    cos(θ) * x[c, i] + t*sin(θ) * x[c, j]
-			o[c, j] =  - t*sin(θ) * x[c, i] + cos(θ) * x[c, j]
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			o[c, i] =    cosθ * x[c, i] + t*sinθ * x[c, j]
+			o[c, j] =  - t*sinθ * x[c, i] + cosθ * x[c, j]
 		end
 	end
 	o
@@ -121,12 +124,13 @@ end
 
 function _∇mulxa(Δ, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
 	∇θ = similar(θs)
+	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 1)
 		for k = 1:N
-			θ, i, j = θs[k], is[k], js[k]
-			∇θ[k] +=  Δ[c, i] * (-sin(θ) * x[c, i] + t*cos(θ) * x[c, j])
-			∇θ[k] +=  Δ[c, j] * (-t*cos(θ) * x[c, i] - sin(θ) * x[c, j])
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			∇θ[k] +=  Δ[c, i] * (-sinθ * x[c, i] + t*cosθ * x[c, j])
+			∇θ[k] +=  Δ[c, j] * (-t*cosθ * x[c, i] - sinθ * x[c, j])
 		end
 	end
 	∇θ

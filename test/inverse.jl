@@ -19,7 +19,7 @@ using Unitary: UnitaryMatrix, SVDDense, invselu
 end
 
 @testset "Inversions of activation function" begin
-	for f in [identity, selu]
+	for f in [identity, selu, tanh, NNlib.σ]
 		@test inv(f)(f(1)) ≈ 1
 		@test inv(f)(f(-1)) ≈ -1
 		@test inv(inv(f)) == f
@@ -28,7 +28,7 @@ end
 
 @testset "Can I invert SVDDense and its chain" begin
 	for d in [2,3,4]
-		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
+		for m in [SVDDense(d, identity;), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
 			mi = inv(m)
 			@test inv(mi) == m
 

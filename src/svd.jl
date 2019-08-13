@@ -10,15 +10,19 @@ Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(length(m.d)), $(m.σ)}")
 
 Flux.@treelike(SVDDense)
 
-SVDDense(σ) = SVDDense(UnitaryMatrix(rand(1)), 
-			rand(2),
-			UnitaryMatrix(rand(1)),
-			rand(2),
-			σ)
 
-SVDDense(n, σ) = SVDDense(UnitaryButterfly(n), 
+"""
+	SVDDense(n, σ; indexes = :random)
+
+	Dense layer with square weight matrix of dimension `n` parametrized in 
+	SVD decomposition using `UnitaryButterfly`  parametrization of unitary matrix.
+	
+	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
+	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
+"""
+SVDDense(n, σ; indexes = :random) = SVDDense(UnitaryButterfly(n, indexes = indexes), 
 			rand(n),
-			UnitaryButterfly(n),
+			UnitaryButterfly(n, indexes = indexes),
 			zeros(n),
 			σ)
 
@@ -53,15 +57,24 @@ function invselu(x::Real)
   ifelse(x > 0, x/1, log.(1 + x/α))
 end
 
+invtanh(x::Real) = (ln(1 + x) - ln(1 - x)) / 2
+invσ(x::Real) = ln(x) - ln(1 - x)
+
 Base.inv(::typeof(identity)) = identity
 Base.inv(::typeof(NNlib.selu)) = invselu
+Base.inv(::typeof(tanh)) = invtanh
 Base.inv(::typeof(invselu)) = NNlib.selu
+Base.inv(::typeof(invtanh)) = tanh
+Base.inv(::typeof(NNlib.σ)) = invσ
+Base.inv(::typeof(invσ)) = NNlib.σ
 
 #define inversion of a Chain
 Base.inv(m::Chain) = Chain(inv.(m.layers[end:-1:1])...)
 
 
 explicitgrad(::typeof(identity), x) = 1
+explicitgrad(::typeof(tanh), x) = 1 - tanh(x)^2
+explicitgrad(::typeof(NNlib.σ), x) = σ(x)*(1 - σ(x))
 function explicitgrad(::typeof(NNlib.selu), x) 
   λ = oftype(x/1, 1.0507009873554804934193349852946)
   α = oftype(x/1, 1.6732632423543772848170429916717)
