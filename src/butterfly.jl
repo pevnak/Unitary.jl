@@ -81,10 +81,11 @@ function _mulax(θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where
 	o = deepcopy(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 2)
-		for k = 1:N
+		@inbounds for k = 1:N
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			o[i, c] =  cosθ * x[i,c] - t*sinθ * x[j,c]
-			o[j, c] =  t*sinθ * x[i,c] + cosθ * x[j,c]
+			xi, xj = x[i,c], x[j,c]
+			o[i, c] =  cosθ * xi - t*sinθ * xj
+			o[j, c] =  t*sinθ * xi + cosθ * xj
 		end
 	end
 	o
@@ -100,7 +101,7 @@ function _∇mulax(Δ, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 2)
-		for k = 1:N
+		@inbounds for k = 1:N
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			∇θ[k] +=  Δ[i,c] * (- sinθ * x[i,c] - t*cosθ * x[j,c])
 			∇θ[k] +=  Δ[j,c] * (  t*cosθ * x[i,c] - sinθ * x[j,c])
@@ -113,7 +114,7 @@ function _mulxa(x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where
 	o = deepcopy(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 1)
-		for k = 1:N
+		@inbounds for k = 1:N
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			o[c, i] =    cosθ * x[c, i] + t*sinθ * x[c, j]
 			o[c, j] =  - t*sinθ * x[c, i] + cosθ * x[c, j]
@@ -127,7 +128,7 @@ function _∇mulxa(Δ, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 1)
-		for k = 1:N
+		@inbounds for k = 1:N
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			∇θ[k] +=  Δ[c, i] * (-sinθ * x[c, i] + t*cosθ * x[c, j])
 			∇θ[k] +=  Δ[c, j] * (-t*cosθ * x[c, i] - sinθ * x[c, j])
