@@ -1,4 +1,3 @@
-
 struct Butterfly{N, T<:Number} 
 	θ::Vector{T}
 	i::NTuple{N,Int}
@@ -71,17 +70,39 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
 
+function threadpart(i, n)
+	nt = Threads.nthreads()
+	δ = ceil(Int, n / nt)
+	((i-1)*δ + 1):min(n, i*δ)
+end
 """
 	_mulax(θ::Vector, x::MatVec)
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-_mulax(θs, is, js, x, t) = _mulax!(deepcopy(x), θs, is, js, x, t)
+function _mulax(θs, is, js, x, t) 
+	o = deepcopy(x)
+	_mulax!(o, θs, is, js, x, t)
+end
+# function _mulax(θs, is, js, x, t) 
+# 	o = deepcopy(x)
+# 	l = size(x,2)
+# 	nt = Threads.nthreads()
+# 	if nt > 1 && size(x,2) > nt
+# 		Threads.@threads for i in 1:nt
+# 			_mulax!(view(o, :, threadpart(Threads.threadid(), l)), θs, is, js, view(x, : ,threadpart(Threads.threadid(), l)), t)
+# 		end
+# 	else
+# 		_mulax!(o, θs, is, js, x, t)
+# 	end
+# 	o
+# end
+
 function _mulax!(o, θs, is, js, x, t)
 	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
-	for c in 1:size(x, 2)
-		@inbounds for k = 1:length(is)
+	@inbounds for c in 1:size(x, 2)
+		for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			xi, xj = x[i,c], x[j,c]
 			o[i, c] =  cosθ * xi - t*sinθ * xj
@@ -110,12 +131,30 @@ function _∇mulax(Δ, θs, is, js, x, t)
 	∇θ
 end
 
-_mulxa(x, θs, is, js, t) = _mulxa!(deepcopy(x), x, θs, is, js, t)
+function _mulxa(x, θs, is, js, t) 
+	o = deepcopy(x)
+	_mulxa!(o, x, θs, is, js, t)
+end
+
+# function _mulxa(x, θs, is, js, t) 
+# 	o = deepcopy(x)
+# 	l = size(x,2)
+# 	nt = Threads.nthreads()
+# 	if nt > 1 && size(x,2) > nt
+# 		Threads.@threads for i in 1:nt
+# 			_mulax!(view(o, view(x, : ,threadpart(Threads.threadid(), l)), :, threadpart(Threads.threadid(), l)), θs, is, js, t)
+# 		end
+# 	else
+# 		_mulxa!(o, x, θs, is, js, x, t)
+# 	end
+# 	o
+# end
+
 function _mulxa!(o, x, θs, is, js, t)
 	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
-	for c in 1:size(x, 1)
-		@inbounds for k = 1:length(is)
+	for k = 1:length(is)
+		@inbounds for c in 1:size(x, 1)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			xi, xj = x[c, i], x[c, j]
 			o[c, i] =    cosθ * xi + t*sinθ * xj
