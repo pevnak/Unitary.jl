@@ -117,8 +117,9 @@ function _mulxa!(o, x, θs, is, js, t)
 	for c in 1:size(x, 1)
 		@inbounds for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			o[c, i] =    cosθ * x[c, i] + t*sinθ * x[c, j]
-			o[c, j] =  - t*sinθ * x[c, i] + cosθ * x[c, j]
+			xi, xj = x[c, i], x[c, j]
+			o[c, i] =    cosθ * xi + t*sinθ * xj
+			o[c, j] =  - t*sinθ * xi + cosθ * xj
 		end
 	end
 	o
