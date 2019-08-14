@@ -68,12 +68,6 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 *(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θ, a.parent.i, a.parent.j, x, -1))
 *(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θ, a.parent.i, a.parent.j, -1))
 
-mul!(o, a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax!(o, a.θ, a.i, a.j, x, 1))
-mul!(o, x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa!(o, x, a.θ, a.i, a.j, 1))
-mul!(o, a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax!(o, a.parent.θ, a.parent.i, a.parent.j, x, -1))
-mul!(o, x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa!(o, x, a.parent.θ, a.parent.i, a.parent.j, -1))
-
-
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
 
@@ -82,25 +76,12 @@ mul!(o, x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == si
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-function _mulax(θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
-	o = deepcopy(x)
-	cosθs, sinθs = cos.(θs), sin.(θs)
-	for c in 1:size(x, 2)
-		@inbounds for k = 1:N
-			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			xi, xj = x[i,c], x[j,c]
-			o[i, c] =  cosθ * xi - t*sinθ * xj
-			o[j, c] =  t*sinθ * xi + cosθ * xj
-		end
-	end
-	o
-end
-
-function _mulax!(o, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
+_mulax(θs, is, js, x, t) = _mulax!(deepcopy(x), θs, is, js, x, t)
+function _mulax!(o, θs, is, js, x, t)
 	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 2)
-		@inbounds for k = 1:N
+		@inbounds for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			xi, xj = x[i,c], x[j,c]
 			o[i, c] =  cosθ * xi - t*sinθ * xj
@@ -115,12 +96,12 @@ end
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-function _∇mulax(Δ, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
+function _∇mulax(Δ, θs, is, js, x, t)
 	∇θ = similar(θs)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 2)
-		@inbounds for k = 1:N
+		@inbounds for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			∇θ[k] +=  Δ[i,c] * (- sinθ * x[i,c] - t*cosθ * x[j,c])
 			∇θ[k] +=  Δ[j,c] * (  t*cosθ * x[i,c] - sinθ * x[j,c])
@@ -129,25 +110,12 @@ function _∇mulax(Δ, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1
 	∇θ
 end
 
-function _mulxa(x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
-	o = deepcopy(x)
-	cosθs, sinθs = cos.(θs), sin.(θs)
-	for c in 1:size(x, 1)
-		@inbounds for k = 1:N
-			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			xi, xj = x[c, i], x[c, j]
-			o[c, i] =    cosθ * xi + t*sinθ * xj
-			o[c, j] =  - t*sinθ * xi + cosθ * xj
-		end
-	end
-	o
-end
-
-function _mulxa!(o, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
+_mulxa(x, θs, is, js, t) = _mulxa!(deepcopy(x), x, θs, is, js, t)
+function _mulxa!(o, x, θs, is, js, t)
 	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 1)
-		@inbounds for k = 1:N
+		@inbounds for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			o[c, i] =    cosθ * x[c, i] + t*sinθ * x[c, j]
 			o[c, j] =  - t*sinθ * x[c, i] + cosθ * x[c, j]
@@ -156,12 +124,12 @@ function _mulxa!(o, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) w
 	o
 end
 
-function _∇mulxa(Δ, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
+function _∇mulxa(Δ, x, θs, is, js, t)
 	∇θ = similar(θs)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	fill!(∇θ, 0)
 	for c in 1:size(x, 1)
-		@inbounds for k = 1:N
+		@inbounds for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
 			∇θ[k] +=  Δ[c, i] * (-sinθ * x[c, i] + t*cosθ * x[c, j])
 			∇θ[k] +=  Δ[c, j] * (-t*cosθ * x[c, i] - sinθ * x[c, j])
