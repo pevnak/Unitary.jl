@@ -11,6 +11,7 @@ const TransposedMatVec = Union{Matrix, Vector,Transpose{T,Matrix{T}} where T, Tr
 include("unitarymatrix.jl")
 include("butterfly.jl")
 include("unitarybutterfly.jl")
+include("inplaceunitarybutterfly.jl")
 include("givensindexes.jl")
 include("svd.jl")
 

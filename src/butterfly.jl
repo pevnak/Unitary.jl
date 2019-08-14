@@ -68,6 +68,11 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 *(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θ, a.parent.i, a.parent.j, x, -1))
 *(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θ, a.parent.i, a.parent.j, -1))
 
+mul!(o, a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax!(o, a.θ, a.i, a.j, x, 1))
+mul!(o, x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa!(o, x, a.θ, a.i, a.j, 1))
+mul!(o, a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax!(o, a.parent.θ, a.parent.i, a.parent.j, x, -1))
+mul!(o, x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa!(o, x, a.parent.θ, a.parent.i, a.parent.j, -1))
+
 
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
@@ -79,6 +84,20 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 """
 function _mulax(θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
 	o = deepcopy(x)
+	cosθs, sinθs = cos.(θs), sin.(θs)
+	for c in 1:size(x, 2)
+		@inbounds for k = 1:N
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			xi, xj = x[i,c], x[j,c]
+			o[i, c] =  cosθ * xi - t*sinθ * xj
+			o[j, c] =  t*sinθ * xi + cosθ * xj
+		end
+	end
+	o
+end
+
+function _mulax!(o, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, x, t::Int = +1) where {N}
+	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 2)
 		@inbounds for k = 1:N
@@ -112,6 +131,20 @@ end
 
 function _mulxa(x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
 	o = deepcopy(x)
+	cosθs, sinθs = cos.(θs), sin.(θs)
+	for c in 1:size(x, 1)
+		@inbounds for k = 1:N
+			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
+			xi, xj = x[c, i], x[c, j]
+			o[c, i] =    cosθ * xi + t*sinθ * xj
+			o[c, j] =  - t*sinθ * xi + cosθ * xj
+		end
+	end
+	o
+end
+
+function _mulxa!(o, x, θs, is::NTuple{N,Int}, js::NTuple{N,Int}, t::Int = +1) where {N}
+	@assert size(o) == size(x)
 	cosθs, sinθs = cos.(θs), sin.(θs)
 	for c in 1:size(x, 1)
 		@inbounds for k = 1:N
