@@ -19,6 +19,13 @@ end
 # foreach(d -> benchmarksingle(2^d, 100), 2:9)
 foreach(d -> benchmarkall(2^d, 100), 7:9)
 
+
+
+d, l = 256, 100
+a, x = UnitaryButterfly(d), randn(d, l)
+@btime a * x
+# d = 256: 31.830 ms (1530 allocations: 50.48 MiB)
+
 # 1 thread
 # d = 128 median: 0.0039161935  mean 0.0048265533199999995
 # d = 256 median: 0.036817067499999995  mean 0.03741094838

@@ -82,7 +82,7 @@ end
 """
 function _mulax(θs, is, js, x, t) 
 	o = deepcopy(x)
-	_mulax!(o, θs, is, js, x, t)
+	_mulax!(o, θs, is, js, o, t)
 end
 # function _mulax(θs, is, js, x, t) 
 # 	o = deepcopy(x)
@@ -104,7 +104,7 @@ function _mulax!(o, θs, is, js, x, t)
 	@inbounds for c in 1:size(x, 2)
 		for k = 1:length(is)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			xi, xj = x[i,c], x[j,c]
+			xi, xj = x[i,c], x[j,c] #this makes it safe to rewrite the inpur
 			o[i, c] =  cosθ * xi - t*sinθ * xj
 			o[j, c] =  t*sinθ * xi + cosθ * xj
 		end
@@ -133,7 +133,7 @@ end
 
 function _mulxa(x, θs, is, js, t) 
 	o = deepcopy(x)
-	_mulxa!(o, x, θs, is, js, t)
+	_mulxa!(o, o, θs, is, js, t)
 end
 
 # function _mulxa(x, θs, is, js, t) 
@@ -156,7 +156,7 @@ function _mulxa!(o, x, θs, is, js, t)
 	for k = 1:length(is)
 		@inbounds for c in 1:size(x, 1)
 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-			xi, xj = x[c, i], x[c, j]
+			xi, xj = x[c, i], x[c, j]	#this makes it safe to rewrite the inpur
 			o[c, i] =    cosθ * xi + t*sinθ * xj
 			o[c, j] =  - t*sinθ * xi + cosθ * xj
 		end
