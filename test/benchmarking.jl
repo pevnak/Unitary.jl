@@ -23,7 +23,7 @@ foreach(d -> benchmarkall(2^d, 100), 7:9)
 
 d, l = 256, 100
 a, x = UnitaryButterfly(d), randn(d, l)
-@btime a * x
+@btime a * x;
 # d = 256: 31.830 ms (1530 allocations: 50.48 MiB)
 
 # 1 thread

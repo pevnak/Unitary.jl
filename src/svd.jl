@@ -21,9 +21,9 @@ Flux.@treelike(SVDDense)
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
 SVDDense(n, σ; indexes = :random) = SVDDense(UnitaryButterfly(n, indexes = indexes), 
-			rand(n),
+			rand(Float32,n),
 			UnitaryButterfly(n, indexes = indexes),
-			zeros(n),
+			zeros(Float32,n),
 			σ)
 
 
@@ -72,9 +72,9 @@ Base.inv(::typeof(invσ)) = NNlib.σ
 Base.inv(m::Chain) = Chain(inv.(m.layers[end:-1:1])...)
 
 
-explicitgrad(::typeof(identity), x) = 1
-explicitgrad(::typeof(tanh), x) = 1 - tanh(x)^2
-explicitgrad(::typeof(NNlib.σ), x) = σ(x)*(1 - σ(x))
+explicitgrad(::typeof(identity), x) = 1f0
+explicitgrad(::typeof(tanh), x) = 1f0 - tanh(x)^2
+explicitgrad(::typeof(NNlib.σ), x) = σ(x)*(1f0 - σ(x))
 function explicitgrad(::typeof(NNlib.selu), x) 
   λ = oftype(x/1, 1.0507009873554804934193349852946)
   α = oftype(x/1, 1.6732632423543772848170429916717)

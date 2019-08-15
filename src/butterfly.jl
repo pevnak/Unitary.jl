@@ -13,7 +13,7 @@ struct Butterfly{N, T<:Number}
 	end
 end
 
-Butterfly(i, j, n) = Butterfly(2π*rand(length(i)), i, j, n)
+Butterfly(i, j, n) = Butterfly(Float32.(2π*rand(length(i))), i, j, n)
 
 struct TransposedButterfly{B<:Butterfly} 
 	parent::B
@@ -81,8 +81,8 @@ end
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
 function _mulax(θs, is, js, x, t) 
-	o = deepcopy(x)
-	_mulax!(o, θs, is, js, o, t)
+	o = similar(x)
+	_mulax!(o, θs, is, js, x, t)
 end
 # function _mulax(θs, is, js, x, t) 
 # 	o = deepcopy(x)
@@ -133,7 +133,7 @@ end
 
 function _mulxa(x, θs, is, js, t) 
 	o = deepcopy(x)
-	_mulxa!(o, o, θs, is, js, t)
+	_mulxa!(o, x, θs, is, js, t)
 end
 
 # function _mulxa(x, θs, is, js, t) 
