@@ -25,9 +25,9 @@ function filtergivenses(n, g::Tuple{Vector,Vector})
 end
 
 
-function randomgivenses(n)
+function randomgivenses(n, m = n - 1)
 	k = div(n, 2)
-	idxs = map(1:n-1) do _ 
+	idxs = map(1:m) do _ 
 		p = randperm(n)
 		(p[1:k], p[k+1:2k])
 	end 

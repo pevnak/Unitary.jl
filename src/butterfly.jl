@@ -67,6 +67,11 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 *(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θ, a.parent.i, a.parent.j, x, -1))
 *(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θ, a.parent.i, a.parent.j, -1))
 
+mul!(o, a::Butterfly, x::TransposedMatVec) = _mulax!(o, a.θ, a.i, a.j, x, 1)
+mul!(o, x::TransposedMatVec, a::Butterfly) = _mulxa!(o, x, a.θ, a.i, a.j, 1)
+mul!(o, a::TransposedButterfly, x::TransposedMatVec) = _mulax!(o, a.parent.θ, a.parent.i, a.parent.j, x, -1)
+mul!(o, x::TransposedMatVec, a::TransposedButterfly) = _mulxa!(o, x, a.parent.θ, a.parent.i, a.parent.j, -1)
+
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
 
@@ -80,23 +85,7 @@ end
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-function _mulax(θs, is, js, x, t) 
-	o = similar(x)
-	_mulax!(o, θs, is, js, x, t)
-end
-# function _mulax(θs, is, js, x, t) 
-# 	o = deepcopy(x)
-# 	l = size(x,2)
-# 	nt = Threads.nthreads()
-# 	if nt > 1 && size(x,2) > nt
-# 		Threads.@threads for i in 1:nt
-# 			_mulax!(view(o, :, threadpart(Threads.threadid(), l)), θs, is, js, view(x, : ,threadpart(Threads.threadid(), l)), t)
-# 		end
-# 	else
-# 		_mulax!(o, θs, is, js, x, t)
-# 	end
-# 	o
-# end
+_mulax(θs, is, js, x, t) = _mulax!(deepcopy(x), θs, is, js, x, t)
 
 function _mulax!(o, θs, is, js, x, t)
 	@assert size(o) == size(x)
@@ -111,6 +100,7 @@ function _mulax!(o, θs, is, js, x, t)
 	end
 	o
 end
+
 
 """
 	_∇mulax(θ, Δ, x)
@@ -131,24 +121,7 @@ function _∇mulax(Δ, θs, is, js, x, t)
 	∇θ
 end
 
-function _mulxa(x, θs, is, js, t) 
-	o = deepcopy(x)
-	_mulxa!(o, x, θs, is, js, t)
-end
-
-# function _mulxa(x, θs, is, js, t) 
-# 	o = deepcopy(x)
-# 	l = size(x,2)
-# 	nt = Threads.nthreads()
-# 	if nt > 1 && size(x,2) > nt
-# 		Threads.@threads for i in 1:nt
-# 			_mulax!(view(o, view(x, : ,threadpart(Threads.threadid(), l)), :, threadpart(Threads.threadid(), l)), θs, is, js, t)
-# 		end
-# 	else
-# 		_mulxa!(o, x, θs, is, js, x, t)
-# 	end
-# 	o
-# end
+_mulxa(x, θs, is, js, t) = _mulxa!(deepcopy(x), x, θs, is, js, t)
 
 function _mulxa!(o, x, θs, is, js, t)
 	@assert size(o) == size(x)

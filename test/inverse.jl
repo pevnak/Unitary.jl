@@ -1,5 +1,5 @@
 using Unitary, Test, LinearAlgebra, Flux
-using Unitary: UnitaryMatrix, SVDDense, invselu
+using Unitary: UnitaryMatrix, SVDDense
 
 @testset "Is transposed unitary matrix its inverse?" begin
 	a = UnitaryMatrix([1])
@@ -20,21 +20,26 @@ end
 
 @testset "Inversions of activation function" begin
 	for f in [identity, selu, tanh, NNlib.σ]
-		@test inv(f)(f(1)) ≈ 1
-		@test inv(f)(f(-1)) ≈ -1
+		x = -10:1:10
+		@test inv(f).(f.(x)) ≈ x
+		@test inv(f).(f.(-x)) ≈ -x
 		@test inv(inv(f)) == f
 	end
 end
 
 @testset "Can I invert SVDDense and its chain" begin
 	for d in [2,3,4]
-		for m in [SVDDense(d, identity;), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
+		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
 			mi = inv(m)
 			@test inv(mi) == m
-
 			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
 				@test Flux.data(mi(m(x))) ≈ x
 			end
 		end
 	end
+end
+
+@testset "reducing number of operations in SVDDense" begin 
+	@test length(Unitary.SVDDense(10, identity, maxn = 3).u.matrices) == 3
+	@test length(Unitary.SVDDense(10, identity, maxn = 3).v.matrices) == 3
 end
