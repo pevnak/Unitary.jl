@@ -40,7 +40,6 @@ end
 	for d in [2,3,4]
 		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, identity), SVDDense(d, identity)), Chain(SVDDense(d, selu), SVDDense(d, selu))]
 			mi = inv(m)
-			@test inv(mi) == m
 			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
 				@test isapprox(mi(m(x)),  x, atol = 1e-4)
 			end

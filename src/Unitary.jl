@@ -2,10 +2,7 @@ module Unitary
 
 using Flux, LinearAlgebra, Zygote
 using Zygote: @adjoint
-import Base.*
-import Base.+
-import Base.-
-import Base./
+import Base: *, transpose
 
 const AbstractMatVec = Union{AbstractMatrix, AbstractVector}
 const MatVec = Union{Matrix, Vector}

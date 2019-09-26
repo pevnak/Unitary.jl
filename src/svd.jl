@@ -6,7 +6,7 @@ struct SVDDense{U, D, V, B, S}
 	σ::S
 end
 
-Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(length(m.d)), $(m.σ)}")
+Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(size(m.d)), $(m.σ)}")
 
 Flux.@treelike(SVDDense)
 
@@ -20,20 +20,21 @@ Flux.@treelike(SVDDense)
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-SVDDense(n, σ; indexes = :random, maxn::Int = n) = SVDDense(UnitaryButterfly(n, indexes = indexes, maxn = maxn), 
-			rand(Float32,n),
+SVDDense(n, σ; indexes = :random, maxn::Int = n) = 
+	SVDDense(UnitaryButterfly(n, indexes = indexes, maxn = maxn), 
+			DiagonalRectangular(rand(Float32,n), n, n),
 			UnitaryButterfly(n, indexes = indexes, maxn = maxn),
 			zeros(Float32,n),
 			σ)
 
 
-(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d .* (m.v * x)) .+ m.b)
+(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x)) .+ m.b)
 
 function (m::SVDDense)(xx::Tuple)
 	x, logdet = xx
-	pre = m.u * (m.d .* (m.v * x)) .+ m.b
+	pre = m.u * (m.d * (m.v * x)) .+ m.b
 	g = explicitgrad.(m.σ, pre)
-	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ sum(log.(abs.(m.d) .+ 1f-6)))
+	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ logabsdet(m.d))
 end
 
 struct InvertedSVDDense{U, D, V, B, S}
@@ -45,10 +46,10 @@ struct InvertedSVDDense{U, D, V, B, S}
 end
 Flux.@treelike(InvertedSVDDense)
 
-Base.inv(m::SVDDense) = InvertedSVDDense(inv(m.u), m.d, inv(m.v), m.b, inv(m.σ))
-Base.inv(m::InvertedSVDDense) = SVDDense(inv(m.u), m.d, inv(m.v), m.b, inv(m.σ))
+Base.inv(m::SVDDense) = InvertedSVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
+Base.inv(m::InvertedSVDDense) = SVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 
-(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * ((m.u * (m.σ.(x) .- m.b)) ./ m.d)
+(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * (m.d * (m.u * (m.σ.(x) .- m.b)))
 
 #define inversions of the most common functions
 # λ * ifelse(x > 0, x/1, α * (exp(x) - 1))
