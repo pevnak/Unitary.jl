@@ -28,8 +28,9 @@ SVDDense(n, σ; indexes = :random, maxn::Int = n) = SVDDense(UnitaryButterfly(n,
 
 
 (m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d .* (m.v * x)) .+ m.b)
-function (m::SVDDense)(x::Tuple)
-	x, logdet = x
+
+function (m::SVDDense)(xx::Tuple)
+	x, logdet = xx
 	pre = m.u * (m.d .* (m.v * x)) .+ m.b
 	g = explicitgrad.(m.σ, pre)
 	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ sum(log.(abs.(m.d) .+ 1f-6)))

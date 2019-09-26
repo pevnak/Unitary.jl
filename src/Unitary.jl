@@ -3,6 +3,9 @@ module Unitary
 using Flux, LinearAlgebra, Zygote
 using Zygote: @adjoint
 import Base.*
+import Base.+
+import Base.-
+import Base./
 
 const AbstractMatVec = Union{AbstractMatrix, AbstractVector}
 const MatVec = Union{Matrix, Vector}
@@ -13,6 +16,7 @@ include("butterfly.jl")
 include("unitarybutterfly.jl")
 include("inplaceunitarybutterfly.jl")
 include("givensindexes.jl")
+include("diagonalrectangular.jl")
 include("svd.jl")
 
 end # module

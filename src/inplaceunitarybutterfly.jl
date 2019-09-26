@@ -1,3 +1,4 @@
+using Zygote: dropgrad
 struct InPlaceUnitaryButterfly{T<:Real,I<:Tuple}
 	θs::Matrix{T}
 	is::Vector{I}
@@ -20,41 +21,72 @@ Base.zero(a::InPlaceUnitaryButterfly) = InPlaceUnitaryButterfly(zero(a.θ), a.i,
 *(a::InPlaceUnitaryButterfly, x::TransposedMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.is, a.js, a.transposed, x))
 *(x::TransposedMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.is, a.js, a.transposed))
 
+_buttermulax(θs, is, js, transposed, x) = accummulax(θs, is, js, transposed, x)[1]
+_buttermulxa(x, θs, is, js, transposed) = accummulxa(x, θs, is, js, transposed)[end]
 
-function _buttermulax(θs, is, js, transposed, x) 
-	o = deepcopy(x);
-	for i in length(is):-1:1
-		 _mulax!(o, θs[:,i], is[i], js[i], o, transposed)
+function accummulax(θs, is, js, transposed, x) 
+	n = length(is)
+	xs = Vector{Matrix{eltype(x)}}(undef, n+1)
+	xs[end] = deepcopy(x)
+	for i in n:-1:1
+		x = xs[i+1]
+		o = deepcopy(x);
+		_mulax!(o, θs[:,i], is[i], js[i], x, transposed)
+		 xs[i] = o
 	end
-	o 
+	xs
 end
 
-function _buttermulxa(x, θs, is, js, transposed) 
-	o = deepcopy(x);
-	for i in 1:length(is)
-		 _mulxa!(o, o, θs[:,i], is[i], js[i], transposed)
+function accummulxa(x, θs, is, js, transposed) 
+	n = length(is)
+	xs = Vector{Matrix{eltype(x)}}(undef, n+1)
+	xs[1] = deepcopy(x)
+	for i in 1:n
+		x = xs[i]
+		o = deepcopy(x);
+		_mulxa!(o, x, θs[:,i], is[i], js[i], transposed)
+		xs[i+1] = o
 	end
-	o 
+	xs
 end
 
-function _∇buttermulax(Δ, θs, is, js, transposed, x) 
-	δx = deepcopy(Δ);
+function _∇buttermulax(Δ, xs, θs, is, js, transposed, x) 
+	n = length(is)
+	Δ = deepcopy(Δ);
 	δθ = similar(θs);
-	for i in length(is):-1:1
-		δθ[:,i] = _∇mulax!(o, θs[:,i], is[i], js[i], o, transposed)
-		 _mulax!(o, θs[:,i], is[i], js[i], o, transposed)
+	for i in 1:n
+		δθ[:,i] = _∇mulax(Δ, θs[:,i], is[i], js[i], xs[i+1], transposed)
+		 _mulax!(Δ, θs[:,i], is[i], js[i], Δ, -transposed)
 	end
-	o 
+	(δθ, nothing, nothing, nothing, Δ)
+end
+
+function _∇buttermulxa(Δ, xs, x, θs, is, js, transposed) 
+	n = length(is)
+	Δ = deepcopy(Δ);
+	δθ = similar(θs);
+	for i in n:-1:1
+		δθ[:,i] = _∇mulxa(Δ, xs[i], θs[:,i], is[i], js[i], transposed)
+		 _mulxa!(Δ, Δ, θs[:,i], is[i], js[i], -transposed)
+	end
+	(δθ, Δ, nothing, nothing, nothing)
 end
 
 
-# @adjoint function _buttermulax(θs, is, js, x, t)
-# 	return _buttermulax(θs, is, js, x, t) , Δ -> (_∇mulax(Δ, θs, is, js, x, t), nothing, nothing, _buttermulax(θs, is, js, Δ, -t))
+@adjoint function _buttermulax(θs, is, js, transposed, x)
+	xs = Unitary.accummulax(θs, is, js, transposed, x)
+	return xs[1], Δ -> _∇buttermulax(Δ, xs, θs, is, js, transposed, x)
+end
+
+# @adjoint function _∇buttermulax(Δ, xs, θs, is, js, transposed, x)
+# 	return (_∇buttermulax(Δ, xs, θs, is, js, transposed, x), Δ -> (nothing, nothing, nothing, nothing, nothing, nothing, nothing))
 # end
 
-# @adjoint function _mulxa(x, θs, is, js, t)
-# 	return _mulxa(x, θs, is, js, t) , Δ -> (_mulxa(Δ, θs, is, js, -t), _∇mulxa(Δ, x, θs, is, js, t), nothing, nothing, nothing)
-# end
+@adjoint function _buttermulxa(x, θs, is, js, transposed)
+	xs = Unitary.accummulxa(x, θs, is, js, transposed)
+	return xs[end], Δ -> _∇buttermulxa(Δ, xs, x, θs, is, js, transposed)
+end
+
 
 
 """

@@ -18,6 +18,15 @@ using Unitary: UnitaryMatrix, SVDDense
 	@test inv(inv(a)) == a
 end
 
+@testset "gradient with respect to the likelihood" begin 
+	d = 2
+	x = randn(2,3)
+	model = Chain(SVDDense(d, selu), SVDDense(d, identity))
+	ps = params(model)
+	# gs = gradient(() -> sum(model((x,0.0))[2]), ps)
+	gs = gradient(() -> sum(sum.(model((x,0.0)))), ps)
+end
+
 @testset "Inversions of activation function" begin
 	for f in [identity, selu, tanh, NNlib.σ]
 		x = -10:1:10
@@ -29,8 +38,7 @@ end
 
 @testset "Can I invert SVDDense and its chain" begin
 	for d in [2,3,4]
-		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, selu), SVDDense(d, selu), SVDDense(d, identity))]
-		# for m in [SVDDense(d, identity), Chain(SVDDense(d, identity), SVDDense(d, identity))]
+		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, identity), SVDDense(d, identity)), Chain(SVDDense(d, selu), SVDDense(d, selu))]
 			mi = inv(m)
 			@test inv(mi) == m
 			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
