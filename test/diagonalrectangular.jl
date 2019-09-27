@@ -1,6 +1,9 @@
-using Test, Unitary
-using Unitary: DiagonalRectangular
-@testset begin "DiagonalRectangular: mul"
+using Test, Unitary, Flux, Zygote
+using Unitary: DiagonalRectangular, diagmul
+
+include(joinpath(dirname(pathof(Zygote)),"..","test","gradcheck.jl"))
+
+@testset  "DiagonalRectangular: mul" begin
 	ar = [0.5 0 0; 0 2 0]
 	a = DiagonalRectangular([0.5, 2], 2, 3)
 	for x in  [randn(3, 5), transpose(randn(5, 3))]
@@ -22,7 +25,7 @@ using Unitary: DiagonalRectangular
 	end
 end
 
-@testset begin "DiagonalRectangular: Matrix"
+@testset  "DiagonalRectangular: Matrix" begin
 	ar = [0.5 0 0; 0 2 0]
 	a = DiagonalRectangular([0.5, 2], 2, 3)
 	@test Matrix(a) ≈ ar
@@ -33,7 +36,7 @@ end
 end
 
 
-@testset begin "DiagonalRectangular: transpose"
+@testset  "DiagonalRectangular: transpose" begin
 	a = DiagonalRectangular([0.5, 2], 2, 3)
 	for x in  [randn(3, 5), transpose(randn(5, 3))]
 		@test a * x ≈ transpose(transpose(x) * transpose(a))
@@ -45,7 +48,7 @@ end
 	end
 end
 
-@testset begin "DiagonalRectangular: inv"
+@testset  "DiagonalRectangular: inv" begin
 	a = DiagonalRectangular([0.5, 2], 2, 3)
 	ai = DiagonalRectangular([2, 0.5], 3, 2)
 	x = randn(3, 5)
@@ -53,5 +56,23 @@ end
 
 	x = randn(5, 2)
 	@test (x * a) * ai ≈ x
+
+	inv(a) == ai
+end
+
+@testset  "DiagonalRectangular: gradient" begin
+	for (n, m) in [(3,2), (2,3), (3,3)]
+		a = DiagonalRectangular(rand(min(n,m)), n, m)
+		x = randn(m, n)
+		am = Matrix(a)
+
+		@test Flux.gradient(x -> sum(sin.(x * am)), x)[1] ≈ Flux.gradient(x -> sum(sin.(x * a)), x)[1]
+		@test isapprox(ngradient(d -> sum(sin.(diagmul(x, d, a.n, a.m))), a.d)[1],  Flux.gradient(a -> sum(sin.(x * a)), a)[1][1], atol = 1e-6)
+
+		@test Flux.gradient(x -> sum(sin.(am * x)), x)[1] ≈ Flux.gradient(x -> sum(sin.(a * x)), x)[1]
+		@test isapprox(ngradient(d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+	end
+	# Flux.gradient(a -> sum(sin.(x * a)), a)[1]
+	# ngradient(d -> sum(diagmul(x, d, a.n, a.m)), a.d)
 end
 

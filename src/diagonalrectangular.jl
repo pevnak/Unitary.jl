@@ -22,6 +22,8 @@ struct DiagonalRectangular{T<:Number}
 	m::Int
 end
 
+Flux.@treelike(DiagonalRectangular)
+
 function DiagonalRectangular(x::T, n, m) where {T<:Number} 
 	DiagonalRectangular(fill(x, min(n,m)), n, m)
 end
@@ -29,30 +31,68 @@ end
 DiagonalRectangular(x::T, n) where {T<:Number} = DiagonalRectangular(x, n, n)
 
 
-function *(a::DiagonalRectangular{T}, x::TransposedMatVec) where {T}
-	@assert a.m == size(x,1)
-	if a.m == a.n 
-		return(a.d .* x)
-	elseif a.n < a.m
-		return(a.d .* x[1:a.n, :])
+*(a::DiagonalRectangular, x::AbstractMatrix) = diagmul(a.d, a.n, a.m, x)
+
+function diagmul(d::Vector{T}, n::Int, m::Int, x::AbstractMatrix) where {T}	
+	@assert m == size(x,1)
+	if m == n 
+		return(d .* x)
+	elseif n < m
+		return(d .* x[1:n, :])
 	else
-		o = zeros(T, a.n, size(x,2)) 
-		o[1:a.m, :] .= a.d .* x
+		o = zeros(T, n, size(x,2)) 
+		o[1:m, :] .= d .* x
 		return(o)
 	end
 end
 
-function *(x::TransposedMatVec, a::DiagonalRectangular{T}) where {T}
-	@assert a.n == size(x,2)
-	if a.m == a.n 
-		return(transpose(a.d) .* x)
-	elseif a.m < a.n
-		return(transpose(a.d) .* x[:, 1:a.m])
+function ∇diagmul(Δ, d::Vector{T}, n::Int, m::Int, a::AbstractMatrix) where {T}	
+	if m == n 
+		return(sum(Δ .* a, dims = 2)[:])
+	elseif m < n
+		return(sum(Δ[1:m, :] .* a, dims = 2))
 	else
-		o = zeros(T, size(x,1), a.m)
-		o[:, 1:a.n] .= transpose(a.d) .* x
+		return(sum(Δ .* a[1:n, :], dims = 2)[:])
+	end
+end
+
+@adjoint function diagmul(d::Vector, n::Int, m::Int, a::AbstractMatrix)
+	return diagmul(d, n, m, a) , Δ -> (∇diagmul(Δ, d, n, m, a), nothing, nothing, diagmul(d, m, n, Δ))
+end
+
+
+
+# @adjoint function *(a::AbstractMatrix, b::DiagonalRectangular)
+# 	# return a * b , Δ -> (Δ * b', a' * Δ)
+# 	return a * b , Δ -> (Δ * b', DiagonalRectangular(sum(a' * Δ, dims = 2)[1:n], b.n, b.m))
+# end
+
+*(x::AbstractMatrix, a::DiagonalRectangular) = diagmul(x, a.d, a.n, a.m)
+function diagmul(x::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {T}
+	@assert n == size(x,2)
+	if m == n 
+		return(transpose(d) .* x)
+	elseif m < n
+		return(transpose(d) .* x[:, 1:m])
+	else
+		o = zeros(T, size(x,1), m)
+		o[:, 1:n] .= transpose(d) .* x
 		return(o)
 	end
+end
+
+function ∇diagmul(Δ, a::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {T}
+	if m == n 
+		return(sum(Δ .* a, dims = 1)[:])
+	elseif m < n
+		return(sum(Δ .* a[:, 1:m], dims = 1)[:])
+	else
+		return(sum(Δ[:,1:n] .* a, dims = 1)[:])
+	end
+end
+
+@adjoint function diagmul(a::AbstractMatrix, d::Vector, n::Int, m::Int)
+	return diagmul(a, d, n, m) , Δ -> (diagmul(Δ, d, m, n),  ∇diagmul(Δ, a, d, n, m), nothing, nothing)
 end
 
 transpose(a::DiagonalRectangular) = DiagonalRectangular(a.d, a.m, a.n)
