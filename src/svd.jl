@@ -20,11 +20,18 @@ Flux.@treelike(SVDDense)
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-SVDDense(n, σ; indexes = :random, maxn::Int = n) = 
+SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
 	SVDDense(UnitaryButterfly(n, indexes = indexes, maxn = maxn), 
 			DiagonalRectangular(rand(Float32,n), n, n),
 			UnitaryButterfly(n, indexes = indexes, maxn = maxn),
 			zeros(Float32,n),
+			σ)
+
+SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
+	SVDDense(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn)), 
+			DiagonalRectangular(rand(Float32,min(d,k)), k, d),
+			UnitaryButterfly(d, indexes = indexes, maxn = min(k,maxn)),
+			zeros(Float32,k),
 			σ)
 
 

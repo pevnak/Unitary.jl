@@ -1,7 +1,8 @@
 using Test, Unitary, Flux, Zygote
 using Unitary: DiagonalRectangular, diagmul
+using FiniteDifferences
 
-include(joinpath(dirname(pathof(Zygote)),"..","test","gradcheck.jl"))
+fdm = central_fdm(5, 1);
 
 @testset  "DiagonalRectangular: mul" begin
 	ar = [0.5 0 0; 0 2 0]
@@ -67,12 +68,33 @@ end
 		am = Matrix(a)
 
 		@test Flux.gradient(x -> sum(sin.(x * am)), x)[1] ≈ Flux.gradient(x -> sum(sin.(x * a)), x)[1]
-		@test isapprox(ngradient(d -> sum(sin.(diagmul(x, d, a.n, a.m))), a.d)[1],  Flux.gradient(a -> sum(sin.(x * a)), a)[1][1], atol = 1e-6)
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(x, d, a.n, a.m))), a.d),  Flux.gradient(a -> sum(sin.(x * a)), a)[1][1], atol = 1e-6)
 
 		@test Flux.gradient(x -> sum(sin.(am * x)), x)[1] ≈ Flux.gradient(x -> sum(sin.(a * x)), x)[1]
-		@test isapprox(ngradient(d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+
+		ps = params(a)
+		@test length(ps) == 1
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),
+			gradient(() -> sum(sin.(a * x)),ps)[a.d], atol = 1e-6)
 	end
-	# Flux.gradient(a -> sum(sin.(x * a)), a)[1]
-	# ngradient(d -> sum(diagmul(x, d, a.n, a.m)), a.d)
+
+	n, m = 3, 2
+	a = DiagonalRectangular(rand(min(n,m)), n, m)
+	x = randn(m)
+	am = Matrix(a)
+
+	@test Flux.gradient(x -> sum(sin.(am * x)), x)[1] ≈ Flux.gradient(x -> sum(sin.(a * x)), x)[1]
+	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+end
+
+@testset  "DiagonalRectangular: integration with flux" begin
+	n,m = 2,3
+	a = DiagonalRectangular(rand(min(n,m)), n, m)
+	x = randn(m, n)
+	ps = params(a)
+	@test length(ps) == 1
+	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),
+		gradient(() -> sum(sin.(a * x)),ps)[a.d], atol = 1e-6)
 end
 

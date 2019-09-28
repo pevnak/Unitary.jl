@@ -32,8 +32,9 @@ DiagonalRectangular(x::T, n) where {T<:Number} = DiagonalRectangular(x, n, n)
 
 
 *(a::DiagonalRectangular, x::AbstractMatrix) = diagmul(a.d, a.n, a.m, x)
+*(a::DiagonalRectangular, x::AbstractVector) = diagmul(a.d, a.n, a.m, x)
 
-function diagmul(d::Vector{T}, n::Int, m::Int, x::AbstractMatrix) where {T}	
+function diagmul(d::Vector{T}, n::Int, m::Int, x) where {T}	
 	@assert m == size(x,1)
 	if m == n 
 		return(d .* x)
@@ -46,7 +47,7 @@ function diagmul(d::Vector{T}, n::Int, m::Int, x::AbstractMatrix) where {T}
 	end
 end
 
-function ∇diagmul(Δ, d::Vector{T}, n::Int, m::Int, a::AbstractMatrix) where {T}	
+function ∇diagmul(Δ, d::Vector{T}, n::Int, m::Int, a) where {T}	
 	if m == n 
 		return(sum(Δ .* a, dims = 2)[:])
 	elseif m < n
@@ -56,19 +57,13 @@ function ∇diagmul(Δ, d::Vector{T}, n::Int, m::Int, a::AbstractMatrix) where {
 	end
 end
 
-@adjoint function diagmul(d::Vector, n::Int, m::Int, a::AbstractMatrix)
+@adjoint function diagmul(d::Vector, n::Int, m::Int, a)
 	return diagmul(d, n, m, a) , Δ -> (∇diagmul(Δ, d, n, m, a), nothing, nothing, diagmul(d, m, n, Δ))
 end
 
-
-
-# @adjoint function *(a::AbstractMatrix, b::DiagonalRectangular)
-# 	# return a * b , Δ -> (Δ * b', a' * Δ)
-# 	return a * b , Δ -> (Δ * b', DiagonalRectangular(sum(a' * Δ, dims = 2)[1:n], b.n, b.m))
-# end
-
+*(x::AbstractVector, a::DiagonalRectangular) = diagmul(x, a.d, a.n, a.m)
 *(x::AbstractMatrix, a::DiagonalRectangular) = diagmul(x, a.d, a.n, a.m)
-function diagmul(x::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {T}
+function diagmul(x, d::Vector{T}, n::Int, m::Int) where {T}
 	@assert n == size(x,2)
 	if m == n 
 		return(transpose(d) .* x)
@@ -81,7 +76,7 @@ function diagmul(x::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {T}
 	end
 end
 
-function ∇diagmul(Δ, a::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {T}
+function ∇diagmul(Δ, a, d::Vector{T}, n::Int, m::Int) where {T}
 	if m == n 
 		return(sum(Δ .* a, dims = 1)[:])
 	elseif m < n
@@ -91,7 +86,7 @@ function ∇diagmul(Δ, a::AbstractMatrix, d::Vector{T}, n::Int, m::Int) where {
 	end
 end
 
-@adjoint function diagmul(a::AbstractMatrix, d::Vector, n::Int, m::Int)
+@adjoint function diagmul(a, d::Vector, n::Int, m::Int)
 	return diagmul(a, d, n, m) , Δ -> (diagmul(Δ, d, m, n),  ∇diagmul(Δ, a, d, n, m), nothing, nothing)
 end
 
