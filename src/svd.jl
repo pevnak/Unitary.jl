@@ -21,27 +21,27 @@ Flux.@treelike(SVDDense)
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
 SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
-	SVDDense(UnitaryButterfly(n, indexes = indexes, maxn = maxn), 
+	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
 			DiagonalRectangular(rand(Float32,n), n, n),
-			UnitaryButterfly(n, indexes = indexes, maxn = maxn),
+			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
 			zeros(Float32,n),
 			σ)
 
 SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
-	SVDDense(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn)), 
+	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn))), 
 			DiagonalRectangular(rand(Float32,min(d,k)), k, d),
-			UnitaryButterfly(d, indexes = indexes, maxn = min(k,maxn)),
+			InPlaceUnitaryButterfly(UnitaryButterfly(d, indexes = indexes, maxn = min(k,maxn))),
 			zeros(Float32,k),
 			σ)
 
 
-(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x)) .+ m.b)
+(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x .+ m.b)))
 
 function (m::SVDDense)(xx::Tuple)
 	x, logdet = xx
-	pre = m.u * (m.d * (m.v * x)) .+ m.b
+	pre = m.u * (m.d * (m.v * x .+ m.b)) 
 	g = explicitgrad.(m.σ, pre)
-	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ logabsdet(m.d))
+	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ _logabsdet(m.d))
 end
 
 struct InvertedSVDDense{U, D, V, B, S}
@@ -56,7 +56,7 @@ Flux.@treelike(InvertedSVDDense)
 Base.inv(m::SVDDense) = InvertedSVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 Base.inv(m::InvertedSVDDense) = SVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 
-(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * (m.d * (m.u * (m.σ.(x) .- m.b)))
+(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * (m.d * (m.u * (m.σ.(x)))) .- m.b
 
 #define inversions of the most common functions
 # λ * ifelse(x > 0, x/1, α * (exp(x) - 1))

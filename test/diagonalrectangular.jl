@@ -1,6 +1,12 @@
-using Test, Unitary, Flux, Zygote
+using Test, Unitary, Flux, Zygote, LinearAlgebra
 using Unitary: DiagonalRectangular, diagmul
 using FiniteDifferences
+
+
+d = DiagonalRectangular([1.0,2.0], 2, 2)
+ps = params(d)
+gradient(() -> logabsdet(d), ps)
+
 
 fdm = central_fdm(5, 1);
 
@@ -96,5 +102,13 @@ end
 	@test length(ps) == 1
 	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),
 		gradient(() -> sum(sin.(a * x)),ps)[a.d], atol = 1e-6)
+end
+
+@testset "DiagonalRectangular: logabsdet" begin 
+	d = DiagonalRectangular([1.0,2.0], 2, 2)
+	ps = params(d)
+	gradient(() -> logabsdet(d), ps)
+
+	f, back = Zygote.forward(() -> logabsdet(d), ps)
 end
 

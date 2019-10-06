@@ -18,15 +18,17 @@ Base.inv(a::InPlaceUnitaryButterfly) = transpose(a)
 Base.show(io::IO, a::InPlaceUnitaryButterfly) = print(io, "$(a.n)x$(a.n) Unitary with $(size(a.θs,2)) butterfly matrices")
 Base.zero(a::InPlaceUnitaryButterfly) = InPlaceUnitaryButterfly(zero(a.θ), a.i, a.j, a.transposed, a.n)
 
-*(a::InPlaceUnitaryButterfly, x::TransposedMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.is, a.js, a.transposed, x))
-*(x::TransposedMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.is, a.js, a.transposed))
+# *(a::InPlaceUnitaryButterfly, x::TransposedMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.is, a.js, a.transposed, x))
+# *(x::TransposedMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.is, a.js, a.transposed))
+*(a::InPlaceUnitaryButterfly, x::AbstractMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.is, a.js, a.transposed, x))
+*(x::AbstractMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.is, a.js, a.transposed))
 
 _buttermulax(θs, is, js, transposed, x) = accummulax(θs, is, js, transposed, x)[1]
 _buttermulxa(x, θs, is, js, transposed) = accummulxa(x, θs, is, js, transposed)[end]
 
 function accummulax(θs, is, js, transposed, x) 
 	n = length(is)
-	xs = Vector{Matrix{eltype(x)}}(undef, n+1)
+	xs = Vector{typeof(x)}(undef, n+1)
 	xs[end] = deepcopy(x)
 	for i in n:-1:1
 		x = xs[i+1]
@@ -39,7 +41,7 @@ end
 
 function accummulxa(x, θs, is, js, transposed) 
 	n = length(is)
-	xs = Vector{Matrix{eltype(x)}}(undef, n+1)
+	xs = Vector{typeof(x)}(undef, n+1)
 	xs[1] = deepcopy(x)
 	for i in 1:n
 		x = xs[i]
