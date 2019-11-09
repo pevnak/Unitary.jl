@@ -15,5 +15,6 @@ include("inplaceunitarybutterfly.jl")
 include("givensindexes.jl")
 include("diagonalrectangular.jl")
 include("svd.jl")
+include("unitaryhouseholder.jl")
 
 end # module
