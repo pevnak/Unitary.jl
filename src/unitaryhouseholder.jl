@@ -27,6 +27,12 @@ function UnitaryHouseholder(n::Int)
 	UnitaryHouseholder(Y, T_matrix(Y), false, n)
 end
 
+function UnitaryHouseholder(Y::AbstractMatrix)
+	@assert size(Y, 1) == size(Y, 2)
+	UnitaryHouseholder(Y, T_matrix(Y), false, size(Y, 1))
+end
+
+
 Base.size(a::UnitaryHouseholder) = (a.n, a.n)
 Base.size(a::UnitaryHouseholder, i::Int) = a.n
 
