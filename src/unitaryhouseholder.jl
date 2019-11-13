@@ -7,7 +7,7 @@ end
 
 
 HH_t(Y::AbstractMatrix, i::Int) = 2 / (Y[:, i]' * Y[:, i])
-
+HH_t(y::Vector) = 2 / (y' * y)
 
 function T_matrix(Y::AbstractMatrix)
 	n = size(Y, 1)
@@ -69,11 +69,13 @@ function pdiff_reflect(y::Vector, b::Int)
 end
 
 function pdiff(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, a::Int, b::Int)
+# a - vector index
+# b - vector element index
 	n = size(Y, 1)
 	@assert 1 <= a <= b <= n
 	out = Array{eltype(Y), 2}(undef, n, n)
-	leading = (a==1 ? I : Y[:, 1:(a-1)] * T[1:(a-1), 1:(a-1)]) * Y[:, 1:(a-1)]'
-	tailing = (d==a ? I : Y[:, (a+1):n] * T[(a+1):n, (a+1):n]) * Y[:, (a+1):n]'
+	leading = (a==1 ? I : I - Y[:, 1:(a-1)] * T[1:(a-1), 1:(a-1)] * Y[:, 1:(a-1)]')
+	tailing = (n==a ? I : I - Y[:, (a+1):n] * T[(a+1):n, (a+1):n] * Y[:, (a+1):n]')
 	if transposed
 		leading, tailing = tailing, leading
 	end
@@ -86,13 +88,12 @@ function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY::Abs
 	δU = zeros(eltype(Y), b, b)
 	for i = 1:(a==b ? a-1 : a)
 		#pdiff with regards to the last element is constant zero matrix
-		leading = (i==1 ? I : U_matrix(Y[:, 1:(i-1)], T[1:(i-1), 1:(i-1)]))
-		tailing = (i==a ? I : U_matrix(Y[:, (i+1):a], T[(i+1):a, (i+1):a]))
+		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
+		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
 		if transposed
 			leading, tailing = tailing, leading
 		end
 		for j = i:b
-			display((i, j))
 			δU[:, i:b] += (leading * pdiff_reflect(Y[:, i], j) * tailing)[:, i:b] * δY[j, i]
 		end
 	end
