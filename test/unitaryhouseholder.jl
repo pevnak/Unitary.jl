@@ -77,3 +77,13 @@ end
 		@test isapprox(num_tran, Unitary.diff_U(Y, Unitary.T_matrix(Y)', true, δY); atol = 10^(-4))
 	end
 end
+
+using FiniteDifferences
+Y = rand(5,5)
+x = rand(5,5)
+fdm = central_fdm(5, 1)
+grad(fdm, Y -> sum(sin.(UnitaryHouseholder(LowerTriangular(Y)) * x)), Y) ≈
+gradient(Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)
+U = UnitaryHouseholder(Y)
+ps = Flux.Params([U.Y])
+gradient(() -> sum(sin.(U * x)), ps)[U.Y]

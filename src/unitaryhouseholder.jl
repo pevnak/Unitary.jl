@@ -1,6 +1,6 @@
-struct UnitaryHouseholder{T<:Real}
-	Y::AbstractMatrix{T}
-	T::AbstractMatrix{T}
+struct UnitaryHouseholder{M<:AbstractMatrix,T<:AbstractMatrix}
+	Y::M
+	T::T
 	transposed::Bool
 	n::Int
 end
