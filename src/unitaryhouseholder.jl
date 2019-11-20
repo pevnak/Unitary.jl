@@ -45,15 +45,22 @@ Base.show(io::IO, a::UnitaryHouseholder) = print(io, "$(a.n)x$(a.n) UnitaryHouse
 
 Base.Matrix(a::UnitaryHouseholder) = I - a.Y*a.T*(a.Y)'
 
+function mulax(Y, T, x, transposed)
+	x - Y * T * Y' * x
+end
+
+function mulxa(x, Y, T, transposed)
+	x - x * Y * T * Y'
+end
 
 function *(a::UnitaryHouseholder, x::AbstractMatVec)
 	@assert size(x, 1) == a.n
-	x - a.Y * a.T * a.Y' * x
+	mulax(a.Y, a.T, x, a.transposed)
 end
 
 function *(x::AbstractMatVec, a::UnitaryHouseholder)
 	@assert size(x, 2) == a.n
-	x - x * a.Y * a.T * a.Y'
+	mulxa(x, a.Y, a.T, a.transposed)
 end
 
 function pdiff_t(y::Vector, b::Int)
@@ -82,7 +89,7 @@ function pdiff(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, a::Int, b
 	leading * pdiff_reflect(Y[:, a], b) * tailing
 end
 
-function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY::AbstractMatrix)
+function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY)
 # Y and δY must be lower triangular
 	b, a = size(Y)
 	δU = zeros(eltype(Y), b, b)
@@ -99,3 +106,49 @@ function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY::Abs
 	end
 	δU
 end
+
+
+function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::AbstractMatVec, Δ)
+# Y must be lower triangular
+	b, a = size(Y)
+	∇mul = zeros(eltype(Y), b, b)
+	for i = 1:(a==b ? a-1 : a)
+		#pdiff with regards to the last element is constant zero matrix
+		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
+		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
+		if transposed
+			leading, tailing = tailing, leading
+		end
+		for j = i:b
+			∇mul[j, i] = sum(Δ.*(leading * pdiff_reflect(Y[:, i], j) * tailing * x))
+		end
+	end
+	∇mul
+end
+
+
+function grad_mul_x(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, Δ)
+# Y must be lower triangular
+	U = I - Y*T*Y'
+	b = size(x, 1)
+	a = ndims(x)==1 ? 1 : size(x, 2)
+	∇mul = zeros(eltype(Y), b, a)
+	for i = 1:a
+		for j = 1:b
+			∇mul[j, i] = sum(Δ[:, i].*U[:, j])
+		end
+	end
+	∇mul
+end
+
+
+using Zygote:@adjoint
+
+
+@adjoint function mulax(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, transposed::Bool)
+	return mulax(Y, T, x, transposed), Δ -> (grad_mul_Y(Y, T, transposed, x, Δ), nothing, grad_mul_x(Y, T, x, Δ), nothing)
+end
+
+#@adjoint function UnitaryHouseholder(Y, T, transposed, n)
+#	return UnitaryHouseholder(Y, T, transposed, n), Δ -> (Δ.Y, Δ.T, Δ.transposed, Δ.n)
+#end

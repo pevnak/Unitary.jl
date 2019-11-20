@@ -2,7 +2,7 @@ using Unitary, Test, LinearAlgebra
 using Unitary: UnitaryHouseholder
 
 
-
+#=
 function HH_t(y::Vector)
 	2 / (y' * y)
 end
@@ -77,13 +77,30 @@ end
 		@test isapprox(num_tran, Unitary.diff_U(Y, Unitary.T_matrix(Y)', true, δY); atol = 10^(-4))
 	end
 end
-
+=#
 using FiniteDifferences
-Y = rand(5,5)
-x = rand(5,5)
-fdm = central_fdm(5, 1)
-grad(fdm, Y -> sum(sin.(UnitaryHouseholder(LowerTriangular(Y)) * x)), Y) ≈
-gradient(Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)
-U = UnitaryHouseholder(Y)
-ps = Flux.Params([U.Y])
-gradient(() -> sum(sin.(U * x)), ps)[U.Y]
+@testset "Test gradient functions" begin
+	fdm = central_fdm(5, 1)
+	for _ = 1:10
+		Y = rand(5, 5)
+		x = rand(5, 5)
+		Δ = ones(size(Y*x))
+		@test grad(fdm, Y -> sum(UnitaryHouseholder(LowerTriangular(Y)) * x), Y)[1] ≈
+		Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), false, x, Δ)
+		@test grad(fdm, Y -> sum(transpose(UnitaryHouseholder(LowerTriangular(Y))) * x), Y)[1] ≈
+		Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', true, x, Δ)
+		@test grad(fdm, x -> sum(UnitaryHouseholder(LowerTriangular(Y)) * x), x)[1] ≈
+		Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), x, Δ)
+		@test grad(fdm, x -> sum(transpose(UnitaryHouseholder(LowerTriangular(Y))) * x), x)[1] ≈
+		Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', x, Δ)
+	end
+end
+
+#using Zygote: gradient
+#Y = rand(5, 5)
+#x = rand(5, 5)
+#display(gradient(Y -> sum(Unitary.mulax(Y, Unitary.T_matrix(Y), x, false), Y)))
+#display(gradient(Y -> sum(UnitaryHouseholder(Y) * x), Y))
+#U = UnitaryHouseholder(Y)
+#ps = Flux.Params([U.Y])
+#gradient(() -> sum(sin.(U * x)), ps)[U.Y]
