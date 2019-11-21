@@ -5,6 +5,9 @@ struct UnitaryHouseholder{M<:AbstractMatrix,T<:AbstractMatrix}
 	n::Int
 end
 
+Flux.children(u::UnitaryHouseholder) = [u.Y]
+Flux.mapchildren(f, u::UnitaryHouseholder) = f.(Flux.children(u))
+
 
 HH_t(Y::AbstractMatrix, i::Int) = 2 / (Y[:, i]' * Y[:, i])
 HH_t(y::Vector) = 2 / (y' * y)
@@ -21,14 +24,17 @@ function T_matrix(Y::AbstractMatrix)
 	T
 end
 
+Zygote.@nograd T_matrix
 
-function UnitaryHouseholder(n::Int)
-	Y = LowerTriangular(rand(n, n))
+UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float64, n)
+function UnitaryHouseholder(T::DataType, n::Int)
+	Y = LowerTriangular(rand(T, n, n))
 	UnitaryHouseholder(Y, T_matrix(Y), false, n)
 end
 
 function UnitaryHouseholder(Y::AbstractMatrix)
 	@assert size(Y, 1) == size(Y, 2)
+	Y = LowerTriangular(Y)
 	UnitaryHouseholder(Y, T_matrix(Y), false, size(Y, 1))
 end
 
@@ -55,12 +61,12 @@ end
 
 function *(a::UnitaryHouseholder, x::AbstractMatVec)
 	@assert size(x, 1) == a.n
-	mulax(a.Y, a.T, x, a.transposed)
+	mulax(a.Y, T_matrix(a.Y), x, a.transposed)
 end
 
 function *(x::AbstractMatVec, a::UnitaryHouseholder)
 	@assert size(x, 2) == a.n
-	mulxa(x, a.Y, a.T, a.transposed)
+	mulxa(x, a.Y, T_matrix(a.Y), a.transposed)
 end
 
 function pdiff_t(y::Vector, b::Int)

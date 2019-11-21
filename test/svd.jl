@@ -22,7 +22,7 @@ end
 	fdm = central_fdm(5, 1);
 	x = randn(2)
 	for m in [SVDDense(2, identity), SVDDense(2, selu), Chain(SVDDense(2, identity), SVDDense(2, selu))]
-		@test isapprox(logabsdet(jacobian(fdm, m, x))[1], m((x,0))[2][1], atol = 1e-4)
+		@test isapprox(logabsdet(jacobian(fdm, m, x)[1])[1], m((x,0))[2][1], atol = 1e-4)
 	end
 
 	m = Chain(SVDDense(2, 4, identity), SVDDense(4, 2, identity))
