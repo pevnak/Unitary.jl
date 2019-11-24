@@ -20,12 +20,12 @@ Flux.@treelike(SVDDense)
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
-	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
-			DiagonalRectangular(rand(Float32,n), n, n),
-			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
-			zeros(Float32,n),
-			σ)
+#SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
+#	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
+#			DiagonalRectangular(rand(Float32,n), n, n),
+#			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
+#			zeros(Float32,n),
+#			σ)
 
 # SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
 # 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn))), 
@@ -35,6 +35,7 @@ SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) =
 # 			σ)
 
 using LinearAlgebra
+
 SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
 	SVDDense(UnitaryHouseholder(Float32, n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
