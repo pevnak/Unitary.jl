@@ -27,28 +27,14 @@ Flux.@functor SVDDense
 # 			zeros(Float32,n),
 # 			σ)
 
-# SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
-# 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn))), 
-# 			DiagonalRectangular(rand(Float32,min(d,k)), k, d),
-# 			InPlaceUnitaryButterfly(UnitaryButterfly(d, indexes = indexes, maxn = min(k,maxn))),
-# 			zeros(Float32,k),
-# 			σ)
-
 using LinearAlgebra
+
 SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
 	SVDDense(UnitaryHouseholder(Float32, n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
 			UnitaryHouseholder(Float32, n) ,
 			zeros(Float32,n),
 			σ)
-
-# SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
-# 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn))), 
-# 			DiagonalRectangular(rand(Float32,min(d,k)), k, d),
-# 			InPlaceUnitaryButterfly(UnitaryButterfly(d, indexes = indexes, maxn = min(k,maxn))),
-# 			zeros(Float32,k),
-# 			σ)
-
 
 (m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x .+ m.b)))
 
