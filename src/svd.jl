@@ -8,7 +8,7 @@ end
 
 Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(size(m.d)), $(m.σ)}")
 
-Flux.@treelike(SVDDense)
+Flux.@functor SVDDense
 
 
 """
@@ -20,12 +20,12 @@ Flux.@treelike(SVDDense)
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
-	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
-			DiagonalRectangular(rand(Float32,n), n, n),
-			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
-			zeros(Float32,n),
-			σ)
+# SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
+# 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
+# 			DiagonalRectangular(rand(Float32,n), n, n),
+# 			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
+# 			zeros(Float32,n),
+# 			σ)
 
 # SVDDense(d::Int, k::Int, σ; indexes = :random, maxn::Int = min(d,k)) = 
 # 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(k, indexes = indexes, maxn = min(d, maxn))), 
@@ -66,7 +66,7 @@ struct InvertedSVDDense{U, D, V, B, S}
 	b::B
 	σ::S
 end
-Flux.@treelike(InvertedSVDDense)
+Flux.@functor InvertedSVDDense
 
 Base.inv(m::SVDDense) = InvertedSVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 Base.inv(m::InvertedSVDDense) = SVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))

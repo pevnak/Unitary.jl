@@ -7,8 +7,8 @@ struct TransposedUnitaryMatrix{T}
 	θ::T	
 end
 
-Flux.@treelike(UnitaryMatrix)
-Flux.@treelike(TransposedUnitaryMatrix)
+Flux.@functor UnitaryMatrix
+Flux.@functor TransposedUnitaryMatrix
 
 
 # @adjoint Base.getfield(a::UnitaryMatrix, i) = (getproperty(a,i), Δ -> (UnitaryMatrix(Δ),)

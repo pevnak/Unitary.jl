@@ -26,6 +26,6 @@ end
 	end
 
 	m = Chain(SVDDense(2, 4, identity), SVDDense(4, 2, identity))
-	logabsdet(jacobian(fdm, m, x))[1] 
+	logabsdet(jacobian(fdm, m, x)[1])[1] 
 	m((x,0))[2][1]	
 end

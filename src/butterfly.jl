@@ -19,8 +19,8 @@ struct TransposedButterfly{B<:Butterfly}
 	parent::B
 end
 
-Flux.@treelike(Butterfly)
-Flux.@treelike(TransposedButterfly)
+Flux.@functor Butterfly
+Flux.@functor TransposedButterfly
 
 
 function Base.Matrix(a::Butterfly{N, T}) where {N, T}

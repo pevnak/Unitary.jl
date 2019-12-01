@@ -5,9 +5,8 @@ struct UnitaryHouseholder{M<:AbstractMatrix,T<:AbstractMatrix}
 	n::Int
 end
 
-Flux.children(u::UnitaryHouseholder) = [u.Y]
-Flux.mapchildren(f, u::UnitaryHouseholder) = f.(Flux.children(u))
-
+Flux.@functor UnitaryHouseholder
+Flux.trainable(m::UnitaryHouseholder) = (m.Y,)
 
 HH_t(Y::AbstractMatrix, i::Int) = 2 / (Y[:, i]' * Y[:, i])
 HH_t(y::Vector) = 2 / (y' * y)

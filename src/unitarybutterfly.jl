@@ -3,7 +3,7 @@ struct UnitaryButterfly{T<:Tuple}
 	n::Int
 end
 
-Flux.@treelike(UnitaryButterfly)
+Flux.@functor(UnitaryButterfly)
 
 Base.size(a::UnitaryButterfly) = (a.n,a.n)
 Base.size(a::UnitaryButterfly, i::Int) = a.n

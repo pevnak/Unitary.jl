@@ -22,7 +22,7 @@ struct DiagonalRectangular{T<:Number}
 	m::Int
 end
 
-Flux.@treelike(DiagonalRectangular)
+Flux.@functor DiagonalRectangular
 
 function DiagonalRectangular(x::T, n, m) where {T<:Number} 
 	DiagonalRectangular(fill(x, min(n,m)), n, m)

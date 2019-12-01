@@ -17,4 +17,5 @@ include("diagonalrectangular.jl")
 include("svd.jl")
 include("unitaryhouseholder.jl")
 
+export UnitaryHouseholder, UnitaryButterfly, SVDDense
 end # module
