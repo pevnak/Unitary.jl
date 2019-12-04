@@ -10,7 +10,6 @@ Base.show(io::IO, m::SVDDense) = print(io, "SVDDense{$(size(m.d)), $(m.σ)}")
 
 Flux.@functor SVDDense
 
-
 """
 	SVDDense(n, σ; indexes = :random)
 
@@ -20,16 +19,27 @@ Flux.@functor SVDDense
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-# SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
-# 	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
-# 			DiagonalRectangular(rand(Float32,n), n, n),
-# 			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
-# 			zeros(Float32,n),
-# 			σ)
+function SVDDense(n::Int, σ, unitary = :householder; indexes = :random, maxn::Int = n)
+	if unitary == :householder
+		return(_svddense_householder(n, σ))
+	elseif unitary == :butterfly
+		return(_svddense_butterfly(n, σ, maxn = maxn, indexes = indexes))
+	else 
+		@error "unknown type of unitary matrix $unitary"
+	end
+end
+
 
 using LinearAlgebra
 
-SVDDense(n::Int, σ; indexes = :random, maxn::Int = n) = 
+_svddense_butterfly(n::Int, σ; indexes = :random, maxn::Int = n) = 
+	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
+			DiagonalRectangular(rand(Float32,n), n, n),
+			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
+			zeros(Float32,n),
+			σ)
+
+_svddense_householder(n::Int, σ) = 
 	SVDDense(UnitaryHouseholder(Float32, n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
 			UnitaryHouseholder(Float32, n) ,
