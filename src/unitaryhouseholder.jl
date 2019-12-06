@@ -97,14 +97,14 @@ function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY)
 # Y and δY must be lower triangular
 	b, a = size(Y)
 	δU = zeros(eltype(Y), b, b)
-	for i = 1:(a==b ? a-1 : a)
+	@inbounds for i = 1:(a==b ? a-1 : a)
 		#pdiff with regards to the last element is constant zero matrix
-		@inbounds leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
-		@inbounds tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
+		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
+		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
 		if transposed
 			leading, tailing = tailing, leading
 		end
-		@inbounds for j = i:b
+		for j = i:b
 			δU[:, i:b] += (leading * pdiff_reflect(Y[:, i], j) * tailing)[:, i:b] * δY[j, i]
 		end
 	end
@@ -118,13 +118,13 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 	∇mul = zeros(eltype(Y), b, b)
 	for i = 1:(a==b ? a-1 : a)
 		#pdiff with regards to the last element is constant zero matrix
-		@inbounds leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
-		@inbounds tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
+		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
+		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
 		if transposed
 			leading, tailing = tailing, leading
 		end
-		@inbounds for j = i:b
-			∇mul[j, i] = sum(Δ.*(leading * pdiff_reflect(Y[:, i], j) * tailing * x))
+		for j = i:b
+			∇mul[j, i] = sum( Δ .* (leading * pdiff_reflect(Y[:, i], j) * tailing * x))
 		end
 	end
 	∇mul
@@ -139,7 +139,7 @@ function grad_mul_x(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, Δ)
 	∇mul = zeros(eltype(Y), b, a)
 	for i = 1:a
 		for j = 1:b
-			@inbounds ∇mul[j, i] = sum(Δ[:, i].*U[:, j])
+			@inbounds ∇mul[j, i] = sum(Δ[:, i] .* U[:, j])
 		end
 	end
 	∇mul
