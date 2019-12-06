@@ -1,61 +1,8 @@
-struct UHT{F} <: AbstractMatrix{F}
-	Y::LowerTriangular{F, Matrix{F}}
-	T::Matrix{F}
-end
+using Zygote:@adjoint
 
-
-Base.size(a::UHT) = size(a.Y)
-Base.size(a::UHT, i) = size(a.Y, i)
-
-Base.show(io, a::UHT) = pritnln(io, "Unitary matrix of size $(size(a.Y))")
-
-function UHT(x::Matrix)
-	@assert size(x,1) == size(x,2)
-	a = UHT(LowerTriangular(x), similar(x))
-	updatet!(a)
-	a
-end
-
-
-Base.getindex(a::UHT{F}, i, j) where {F} = (i < j) ? zero(F) : a.Y[i,j]
-
-function Base.copyto!(a::UHT, b::Matrix)
-	for i in 1:size(a.Y, 1)
-		for j in 1:size(a.Y, 2)
-			i < j && continue
-			a.Y[i,j] = b[i, j] 
-		end
-	end
-	updatet!(a)
-end
-
-function Base.copyto!(a::UHT, bc::Base.Broadcast.Broadcasted)
-	is, js = axes(bc)
-	for j in js 
-		for i in is 
-			i < j && continue
-			a.Y[i,j] = bc[i,j]
-		end
-	end
-	updatet!(a)
-end
-
-function updatet!(a::UHT)
-	println("updatet!")
-	Y = a.Y 
-	T = a.T
-	n = size(Y, 1)
-	@assert size(Y, 2) <= n
-	T .= 0
-	T[1, 1] = HH_t(Y, 1)
-	@inbounds for i = 2:n
-		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * T[1:i-1, 1:i-1] * Y[:, 1:i-1]' * Y[:, i]
-	end
-end
-
-struct UnitaryHouseholder{M<:AbstractMatrix}
-	Y::M
+include("yth.jl")
+struct UnitaryHouseholder{T}
+	Y::YTH{T}
 	transposed::Bool
 	n::Int
 end
@@ -63,37 +10,19 @@ end
 Flux.@functor UnitaryHouseholder
 Flux.trainable(m::UnitaryHouseholder) = (m.Y,)
 
-HH_t(Y::AbstractMatrix, i::Int) = 2 / (Y[:, i]' * Y[:, i])
-HH_t(y::Vector) = 2 / (y' * y)
-
-function T_matrix(Y::AbstractMatrix)
-	n = size(Y, 1)
-	@assert size(Y, 2) <= n
-	T = UpperTriangular(Array{eltype(Y)}(undef, n, n))
-	T[1, 1] = HH_t(Y, 1)
-	@inbounds for i = 2:n
-		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * T[1:i-1, 1:i-1] * Y[:, 1:i-1]' * Y[:, i]
-	end
-	T
-end
-
-Zygote.@nograd T_matrix
-
 #Constructors#
 UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float64, n)
 
 function UnitaryHouseholder(T::DataType, n::Int)
-	Y = LowerTriangular(rand(T, n, n))
+	Y = YTH(rand(T, n, n))
 	UnitaryHouseholder(Y, false, n)
 end
 
 function UnitaryHouseholder(Y::AbstractMatrix)
 	@assert size(Y, 1) == size(Y, 2)
-	Y = LowerTriangular(Y)
+	Y = YTH(Y)
 	UnitaryHouseholder(Y, false, size(Y, 1))
 end
-
 
 #Basic functions
 Base.size(a::UnitaryHouseholder) = (a.n, a.n)
@@ -105,13 +34,14 @@ Base.inv(a::UnitaryHouseholder) = LinearAlgebra.transpose(a)
 Base.show(io::IO, a::UnitaryHouseholder) = print(io, "$(a.n)x$(a.n) UnitaryHouseholder")
 
 function Base.Matrix(a::UnitaryHouseholder)
-	T = (a.transposed ? T_matrix(a.Y)' : T_matrix(a.Y))
-	I - a.Y*T*(a.Y)'
+	T = a.transposed ? a.Y.T' : a.Y.T
+	Y = a.Y
+	I - Y*T*(Y)'
 end
 
 function mulax(Y, x, transposed)
-	T = (transposed ? T_matrix(Y)' : T_matrix(Y))
-	x - Y * T * Y' * x
+	T = transposed ? Y.T' : Y.T
+	mulax(Y.Y, x, transposed, T)
 end
 
 function mulax(Y, x, transposed, T)
@@ -119,7 +49,7 @@ function mulax(Y, x, transposed, T)
 end
 
 function mulxa(x, Y, transposed)
-	T = (transposed ? T_matrix(Y)' : T_matrix(Y))
+	T = transposed ? Y.T' : Y.T
 	x - x * Y * T * Y'
 end
 
@@ -216,12 +146,10 @@ function grad_mul_x(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, Δ)
 end
 
 
-using Zygote:@adjoint
 
-
-@adjoint function mulax(Y::AbstractMatrix, x::AbstractMatVec, transposed::Bool)
-	T = (transposed ? T_matrix(Y)' : T_matrix(Y))
-	return mulax(Y, x, transposed, T), Δ -> (grad_mul_Y(Y, T, transposed, x, Δ), grad_mul_x(Y, T, x, Δ), nothing)
+@adjoint function mulax(Y::YTH, x::AbstractMatVec, transposed::Bool)
+	T = transposed ? Y.T' : Y.T
+	return mulax(Y, x, transposed, T), Δ -> (grad_mul_Y(Y.Y, T, transposed, x, Δ), grad_mul_x(Y.Y, T, x, Δ), nothing)
 end
 
 

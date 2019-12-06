@@ -23,8 +23,9 @@ function HH_mul(Y::AbstractMatrix)
 end
 
 @testset "Conversion of UnitaryHouseholder to matrix" begin
-	Y = LowerTriangular(randn(5, 5))
+	Y = randn(5, 5)
 	a = UnitaryHouseholder(Y)
+	Y = LowerTriangular(Y)
 	@test Matrix(a) ≈ HH_mul(Y)
 	@test Matrix(transpose(a)) ≈ HH_mul(Y[:, end:-1:1])
 end
@@ -32,16 +33,16 @@ end
 @testset "Multiplication and T_update on multiplication" begin
 	a = UnitaryHouseholder(5)
 	x = randn(5, 5)
-	@test a * x ≈ HH_mul(a.Y) * x
-	@test transpose(a) * x ≈ HH_mul(a.Y)' * x
-	@test x * a ≈ x * HH_mul(a.Y)
-	@test x * transpose(a) ≈ x * HH_mul(a.Y)'
+	@test a * x ≈ HH_mul(a.Y.Y) * x
+	@test transpose(a) * x ≈ HH_mul(a.Y.Y)' * x
+	@test x * a ≈ x * HH_mul(a.Y.Y)
+	@test x * transpose(a) ≈ x * HH_mul(a.Y.Y)'
 	a.Y .= LowerTriangular(rand(5, 5))
 	x = randn(5, 5)
-	@test a * x ≈ HH_mul(a.Y) * x
-	@test transpose(a) * x ≈ HH_mul(a.Y)' * x
-	@test x * a ≈ x * HH_mul(a.Y)
-	@test x * transpose(a) ≈ x * HH_mul(a.Y)'
+	@test a * x ≈ HH_mul(a.Y.Y) * x
+	@test transpose(a) * x ≈ HH_mul(a.Y.Y)' * x
+	@test x * a ≈ x * HH_mul(a.Y.Y)
+	@test x * transpose(a) ≈ x * HH_mul(a.Y.Y)'
 end
 
 @testset "Test partial derivative of single reflection" begin
@@ -78,17 +79,17 @@ end
 end
 
 @testset "Test gradient functions" begin
-	fdm = central_fdm(5, 1)
+	cfdm = central_fdm(5, 1)
 	Y = rand(5, 5)
 	x = rand(5, 5)
 	Δ = ones(size(Y*x))
-	@test grad(fdm, Y -> sum(UnitaryHouseholder(LowerTriangular(Y)) * x), Y)[1] ≈
+	@test grad(cfdm, Y -> sum(UnitaryHouseholder(Y) * x), Y)[1] ≈
 	Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), false, x, Δ)
-	@test grad(fdm, Y -> sum(transpose(UnitaryHouseholder(LowerTriangular(Y))) * x), Y)[1] ≈
+	@test grad(cfdm, Y -> sum(transpose(UnitaryHouseholder(Y)) * x), Y)[1] ≈
 	Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', true, x, Δ)
-	@test grad(fdm, x -> sum(UnitaryHouseholder(LowerTriangular(Y)) * x), x)[1] ≈
+	@test grad(cfdm, x -> sum(UnitaryHouseholder(Y) * x), x)[1] ≈
 	Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), x, Δ)
-	@test grad(fdm, x -> sum(transpose(UnitaryHouseholder(LowerTriangular(Y))) * x), x)[1] ≈
+	@test grad(cfdm, x -> sum(transpose(UnitaryHouseholder(Y)) * x), x)[1] ≈
 	Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', x, Δ)
 end
 
@@ -97,16 +98,16 @@ end
 	x = rand(5, 5)
 	U = UnitaryHouseholder(Y)
 	ps = Flux.params(U)
-	fdm = central_fdm(5, 1)
+	cfdm = central_fdm(5, 1)
 	@test gradient(() -> sum(sin.(U * x)), ps)[U.Y] ≈
-	grad(fdm, Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)[1]
+	grad(cfdm, Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)[1]
 	@test gradient(x -> sum(sin.(U * x)), x)[1] ≈
-	grad(fdm, x -> sum(sin.(UnitaryHouseholder(Y) * x)), x)[1]
-	Y = LowerTriangular(rand(5, 5))
+	grad(cfdm, x -> sum(sin.(UnitaryHouseholder(Y) * x)), x)[1]
+	Y = rand(5, 5)
 	x = rand(5, 5)
-	U.Y .= Y
+	U.Y.Y .= Y
 	@test gradient(() -> sum(sin.(U * x)), ps)[U.Y] ≈
-	grad(fdm, Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)[1]
+	grad(cfdm, Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)[1]
 	@test gradient(x -> sum(sin.(U * x)), x)[1] ≈
-	grad(fdm, x -> sum(sin.(UnitaryHouseholder(Y) * x)), x)[1]
+	grad(cfdm, x -> sum(sin.(UnitaryHouseholder(Y) * x)), x)[1]
 end
