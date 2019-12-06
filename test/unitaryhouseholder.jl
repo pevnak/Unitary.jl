@@ -105,7 +105,7 @@ end
 	grad(cfdm, x -> sum(sin.(UnitaryHouseholder(Y) * x)), x)[1]
 	Y = rand(5, 5)
 	x = rand(5, 5)
-	U.Y.Y .= Y
+	U.Y .= Y
 	@test gradient(() -> sum(sin.(U * x)), ps)[U.Y] ≈
 	grad(cfdm, Y -> sum(sin.(UnitaryHouseholder(Y) * x)), Y)[1]
 	@test gradient(x -> sum(sin.(U * x)), x)[1] ≈
