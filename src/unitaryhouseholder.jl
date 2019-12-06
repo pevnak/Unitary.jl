@@ -104,7 +104,7 @@ function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY)
 		if transposed
 			leading, tailing = tailing, leading
 		end
-		@inbounds for j = i:b
+		@simd for j = i:b
 			δU[:, i:b] += (leading * pdiff_reflect(Y[:, i], j) * tailing)[:, i:b] * δY[j, i]
 		end
 	end
@@ -123,7 +123,7 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 		if transposed
 			leading, tailing = tailing, leading
 		end
-		@inbounds for j = i:b
+		@simd for j = i:b
 			∇mul[j, i] = sum(Δ.*(leading * pdiff_reflect(Y[:, i], j) * tailing * x))
 		end
 	end
@@ -138,8 +138,8 @@ function grad_mul_x(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, Δ)
 	a = ndims(x)==1 ? 1 : size(x, 2)
 	∇mul = zeros(eltype(Y), b, a)
 	for i = 1:a
-		for j = 1:b
-			@inbounds ∇mul[j, i] = sum(Δ[:, i].*U[:, j])
+		@simd for j = 1:b
+			∇mul[j, i] = sum(Δ[:, i].*U[:, j])
 		end
 	end
 	∇mul
