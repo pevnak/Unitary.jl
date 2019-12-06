@@ -95,7 +95,7 @@ end
 		exp.(- sum(x.^2, dims = 1)) .+ l
 	end
 	x = randn(2,10)
-	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], ngradient(x -> sum(lkl(m, x)), x)[1], atol = 1e-6)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], ngradient(x -> sum(lkl(m, x)), x)[1], atol = 1e-5)
 	m = Chain(SVDDense(2,selu), SVDDense(2,selu), SVDDense(2,identity))
 	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], ngradient(x -> sum(lkl(m, x)), x)[1], atol = 1e-5)
 end

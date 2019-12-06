@@ -20,8 +20,8 @@ end
 Base.getindex(a::YTH{F}, i, j) where {F} = (i < j) ? zero(F) : a.Y[i,j]
 
 function Base.copyto!(a::YTH, b::Matrix)
-	for i in 1:size(a.Y, 1)
-		for j in 1:size(a.Y, 2)
+	for j in 1:size(a.Y, 2)
+		for i in 1:size(a.Y, 1)
 			i < j && continue
 			a.Y[i,j] = b[i, j] 
 		end
