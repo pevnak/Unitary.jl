@@ -67,11 +67,11 @@ function *(x::AbstractMatVec, a::UnitaryHouseholder)
 	mulxa(x, a.Y, a.transposed)
 end
 
-function pdiff_t(y::Vector, b::Int)
+function pdiff_t(y, b::Int)
 	- HH_t(y)^2 * y[b]
 end
 
-function pdiff_reflect(y::Vector, b::Int)
+function pdiff_reflect(y, b::Int)
 	out = - pdiff_t(y, b) * y *y'
 	t = HH_t(y)
 	@inbounds out[:, b] -= t*y
@@ -115,16 +115,40 @@ end
 function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::AbstractMatVec, Δ)
 # Y must be lower triangular
 	b, a = size(Y)
-	∇mul = zeros(eltype(Y), b, b)
-	for i = 1:(a==b ? a-1 : a)
-		#pdiff with regards to the last element is constant zero matrix
-		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
-		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
-		if transposed
-			leading, tailing = tailing, leading
+	@assert a==b
+	n = a
+	∇mul = zeros(eltype(Y), n, n)
+	Tail = I - (@view Y[:, 2:n]) * (@view T[2:n, 2:n]) * (@view Y[:, 2:n])'
+	tmp = Array{eltype(Y), 2}(undef, n, n)
+	if transposed
+		@simd for j = 1:n
+			∇mul[j, 1] = sum(Δ.*(Tail * pdiff_reflect(Y[:, 1], j) * x))
 		end
-		@simd for j = i:b
-			∇mul[j, i] = sum(Δ.*(leading * pdiff_reflect(Y[:, i], j) * tailing * x))
+		for i = 2:(n-1)
+			#pdiff with regards to the last element is constant zero matrix
+			Lead = I - (@view Y[:, 1:(i-1)]) * (@view T[1:(i-1), 1:(i-1)]) * (@view Y[:, 1:(i-1)])'
+			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
+			@simd for j = i:n
+				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
+				tmp[i, :] = P[1, 1] * (@view Lead[i, :])' + (@view P[1, 2:end])' * (@view Lead[(i+1):n, :])
+				tmp[(i+1):n, :] = Tail * ((@view P[2:end, 1]) * (@view Lead[i, :])' + (@view P[2:end, 2:end]) * (@view Lead[(i+1):n, :]))
+				∇mul[j, i] = sum((@view Δ[i:end, :]).*((@view tmp[i:end, :]) * x))
+			end
+		end
+	else
+		@simd for j = 1:n
+			∇mul[j, 1] = sum(Δ.*(pdiff_reflect(Y[:, 1], j) * Tail * x))
+		end
+		for i = 2:(n-1)
+			#pdiff with regards to the last element is constant zero matrix
+			Lead = I - (@view Y[:, 1:(i-1)]) * (@view T[1:(i-1), 1:(i-1)]) * (@view Y[:, 1:(i-1)])'
+			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
+			@simd for j = i:n
+				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
+				tmp[:, i] = (@view Lead[:, i]) * P[1, 1] + (@view Lead[:, (i+1):end]) * (@view P[2:end, 1])
+				tmp[:, (i+1):n] = ((@view Lead[:, i]) * (@view P[1, 2:end])' + (@view Lead[:, (i+1):end]) * (@view P[2:end, 2:end])) * Tail
+				∇mul[j, i] = sum(Δ.*((@view tmp[:, i:end]) * (@view x[i:end, :])))
+			end
 		end
 	end
 	∇mul

@@ -49,13 +49,13 @@ function updatet!(a::YTH)
 	T[1, 1] = HH_t(Y, 1)
 	@inbounds for i = 2:n
 		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * T[1:i-1, 1:i-1] * Y[:, 1:i-1]' * Y[:, i]
+		T[1:i-1, i] = -T[i, i] * (@view T[1:i-1, 1:i-1]) * (@view Y[:, 1:i-1])' * (@view Y[:, i])
 	end
 end
 
 @inline HH_t(Y::AbstractMatrix, i::Int) = 2 / sum((@view Y[:, i]).^2)
 @inline HH_t(Y::LowerTriangular, i::Int) = 2 / sum(Y[j,i]^2 for j in i:size(Y,2))
-@inline HH_t(y::Vector) = 2 / dot(y, y)
+@inline HH_t(y) = 2 / dot(y, y)
 
 function T_matrix(Y::AbstractMatrix)
 	n = size(Y, 1)
@@ -64,7 +64,7 @@ function T_matrix(Y::AbstractMatrix)
 	T[1, 1] = HH_t(Y, 1)
 	@inbounds for i = 2:n
 		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * T[1:i-1, 1:i-1] * Y[:, 1:i-1]' * Y[:, i]
+		T[1:i-1, i] = -T[i, i] * (@view T[1:i-1, 1:i-1]) * (@view Y[:, 1:i-1])' * (@view Y[:, i])
 	end
 	T
 end
