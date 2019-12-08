@@ -2,7 +2,7 @@ using Zygote:@adjoint
 
 include("yth.jl")
 struct UnitaryHouseholder{T}
-	Y::YTH{T}
+	Y::YUH{T}
 	transposed::Bool
 	n::Int
 end
@@ -14,13 +14,13 @@ Flux.trainable(m::UnitaryHouseholder) = (m.Y,)
 UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float64, n)
 
 function UnitaryHouseholder(T::DataType, n::Int)
-	Y = YTH(rand(T, n, n))
+	Y = YUH(rand(T, n, n))
 	UnitaryHouseholder(Y, false, n)
 end
 
 function UnitaryHouseholder(Y::AbstractMatrix)
 	@assert size(Y, 1) == size(Y, 2)
-	Y = YTH(Y)
+	Y = YUH(Y)
 	UnitaryHouseholder(Y, false, size(Y, 1))
 end
 
@@ -34,27 +34,15 @@ Base.inv(a::UnitaryHouseholder) = LinearAlgebra.transpose(a)
 Base.show(io::IO, a::UnitaryHouseholder) = print(io, "$(a.n)x$(a.n) UnitaryHouseholder")
 
 function Base.Matrix(a::UnitaryHouseholder)
-	T = a.transposed ? a.Y.T' : a.Y.T
-	Y = a.Y
-	I - Y*T*(Y)'
+	a.transposed ? a.Y.U' : a.Y.U
 end
 
 function mulax(Y, x, transposed)
-	T = transposed ? Y.T' : Y.T
-	mulax(Y.Y, x, transposed, T)
-end
-
-function mulax(Y, x, transposed, T)
-	x - Y * T * Y' * x
+	transposed ? Y.U'*x : Y.U*x
 end
 
 function mulxa(x, Y, transposed)
-	T = transposed ? Y.T' : Y.T
-	x - x * Y * T * Y'
-end
-
-function mulxa(x, Y, transposed, T)
-	x - x * Y * T' * Y'
+	transposed ? x*Y.U' : x*Y.U
 end
 
 function *(a::UnitaryHouseholder, x::AbstractMatVec)
@@ -114,6 +102,7 @@ end
 
 function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::AbstractMatVec, Δ)
 # Y must be lower triangular
+# T must be lower triangular if transposed is true
 	b, a = size(Y)
 	@assert a==b
 	n = a
@@ -130,8 +119,8 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
 			@simd for j = i:n
 				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
-				tmp[i, :] .= P[1, 1] * (@view Lead[i, :])' + (@view P[1, 2:end])' * (@view Lead[(i+1):n, :])
-				tmp[(i+1):n, :] .= Tail * ((@view P[2:end, 1]) * (@view Lead[i, :])' + (@view P[2:end, 2:end]) * (@view Lead[(i+1):n, :]))
+				tmp[i, :] = P[1, 1] * (@view Lead[i, :])' + (@view P[1, 2:end])' * (@view Lead[(i+1):n, :])
+				tmp[(i+1):n, :] = Tail * ((@view P[2:end, 1]) * (@view Lead[i, :])' + (@view P[2:end, 2:end]) * (@view Lead[(i+1):n, :]))
 				∇mul[j, i] = sum((@view Δ[i:end, :]).*((@view tmp[i:end, :]) * x))
 			end
 		end
@@ -145,8 +134,8 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
 			@simd for j = i:n
 				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
-				tmp[:, i] .= (@view Lead[:, i]) * P[1, 1] + (@view Lead[:, (i+1):end]) * (@view P[2:end, 1])
-				tmp[:, (i+1):n] .= ((@view Lead[:, i]) * (@view P[1, 2:end])' + (@view Lead[:, (i+1):end]) * (@view P[2:end, 2:end])) * Tail
+				tmp[:, i] = (@view Lead[:, i]) * P[1, 1] + (@view Lead[:, (i+1):end]) * (@view P[2:end, 1])
+				tmp[:, (i+1):n] = ((@view Lead[:, i]) * (@view P[1, 2:end])' + (@view Lead[:, (i+1):end]) * (@view P[2:end, 2:end])) * Tail
 				∇mul[j, i] = sum(Δ.*((@view tmp[:, i:end]) * (@view x[i:end, :])))
 			end
 		end
@@ -155,12 +144,10 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 end
 
 
-function grad_mul_x(Y::AbstractMatrix, T::AbstractMatrix, x::AbstractMatVec, Δ)
-# Y must be lower triangular
-	U = I - Y*T*Y'
+function grad_mul_x(U::AbstractMatrix, x::AbstractMatVec, Δ)
 	b = size(x, 1)
 	a = ndims(x)==1 ? 1 : size(x, 2)
-	∇mul = zeros(eltype(Y), b, a)
+	∇mul = zeros(eltype(U), b, a)
 	for i = 1:a
 		@simd for j = 1:b
 			∇mul[j, i] = sum((@view Δ[:, i]).*(@view U[:, j]))
@@ -171,9 +158,9 @@ end
 
 
 
-@adjoint function mulax(Y::YTH, x::AbstractMatVec, transposed::Bool)
-	T = transposed ? Y.T' : Y.T
-	return mulax(Y, x, transposed, T), Δ -> (grad_mul_Y(Y.Y, T, transposed, x, Δ), grad_mul_x(Y.Y, T, x, Δ), nothing)
+@adjoint function mulax(b::YUH, x::AbstractMatVec, transposed::Bool)
+	T = transposed ? T_matrix(b.Y)' : T_matrix(b.Y)
+	return b.U*x, Δ -> (grad_mul_Y(b.Y, T, transposed, x, Δ), grad_mul_x(b.U, x, Δ), nothing)
 end
 
 

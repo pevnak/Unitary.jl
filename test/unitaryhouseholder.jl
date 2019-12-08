@@ -80,17 +80,19 @@ end
 
 @testset "Test gradient functions" begin
 	cfdm = central_fdm(5, 1)
-	Y = rand(5, 5)
+	Y = Matrix(LowerTriangular(rand(5, 5)))
 	x = rand(5, 5)
+	T = T_matrix(Y)
+	U = I - Y*T*Y'
 	Δ = ones(size(Y*x))
 	@test grad(cfdm, Y -> sum(UnitaryHouseholder(Y) * x), Y)[1] ≈
-	Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), false, x, Δ)
+	Unitary.grad_mul_Y(LowerTriangular(Y), T, false, x, Δ)
 	@test grad(cfdm, Y -> sum(transpose(UnitaryHouseholder(Y)) * x), Y)[1] ≈
-	Unitary.grad_mul_Y(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', true, x, Δ)
+	Unitary.grad_mul_Y(LowerTriangular(Y), T', true, x, Δ)
 	@test grad(cfdm, x -> sum(UnitaryHouseholder(Y) * x), x)[1] ≈
-	Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y)), x, Δ)
+	Unitary.grad_mul_x(U, x, Δ)
 	@test grad(cfdm, x -> sum(transpose(UnitaryHouseholder(Y)) * x), x)[1] ≈
-	Unitary.grad_mul_x(LowerTriangular(Y), Unitary.T_matrix(LowerTriangular(Y))', x, Δ)
+	Unitary.grad_mul_x(U', x, Δ)
 end
 
 @testset "Testing integration with Flux and updating T" begin

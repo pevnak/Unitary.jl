@@ -1,35 +1,35 @@
-struct YTH{F} <: AbstractMatrix{F}
-	Y::LowerTriangular{F, Matrix{F}}
-	T::Matrix{F}
+struct YUH{F} <: AbstractMatrix{F}
+	Y::Matrix{F}
+	U::Matrix{F}
 end
 
 
-Base.size(a::YTH) = size(a.Y)
-Base.size(a::YTH, i) = size(a.Y, i)
+Base.size(a::YUH) = size(a.Y)
+Base.size(a::YUH, i) = size(a.Y, i)
 
-Base.show(io, a::YTH) = pritnln(io, "Unitary matrix of size $(size(a.Y))")
+Base.show(io, a::YUH) = pritnln(io, "Unitary matrix of size $(size(a.Y))")
 
-function YTH(x::Matrix)
+function YUH(x::Matrix)
 	@assert size(x,1) == size(x,2)
-	a = YTH(LowerTriangular(x), similar(x))
-	updatet!(a)
+	a = YUH(Matrix(LowerTriangular(x)), similar(x))
+	updateu!(a)
 	a
 end
 
 
-Base.getindex(a::YTH{F}, i, j) where {F} = (i < j) ? zero(F) : a.Y[i,j]
+Base.getindex(a::YUH{F}, i, j) where {F} = (i < j) ? zero(F) : a.Y[i,j]
 
-function Base.copyto!(a::YTH, b::Matrix)
+function Base.copyto!(a::YUH, b::Matrix)
 	for j in 1:size(a.Y, 2)
 		for i in 1:size(a.Y, 1)
 			i < j && continue
 			a.Y[i,j] = b[i, j] 
 		end
 	end
-	updatet!(a)
+	updateu!(a)
 end
 
-function Base.copyto!(a::YTH, bc::Base.Broadcast.Broadcasted)
+function Base.copyto!(a::YUH, bc::Base.Broadcast.Broadcasted)
 	is, js = axes(bc)
 	for j in js 
 		for i in is 
@@ -37,20 +37,7 @@ function Base.copyto!(a::YTH, bc::Base.Broadcast.Broadcasted)
 			a.Y[i,j] = bc[i,j]
 		end
 	end
-	updatet!(a)
-end
-
-function updatet!(a::YTH)
-	Y = a.Y 
-	T = a.T
-	n = size(Y, 1)
-	@assert size(Y, 2) <= n
-	T .= 0
-	T[1, 1] = HH_t(Y, 1)
-	@inbounds for i = 2:n
-		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * (@view T[1:i-1, 1:i-1]) * (@view Y[:, 1:i-1])' * (@view Y[:, i])
-	end
+	updateu!(a)
 end
 
 @inline HH_t(Y::AbstractMatrix, i::Int) = 2 / sum((@view Y[:, i]).^2)
@@ -60,11 +47,16 @@ end
 function T_matrix(Y::AbstractMatrix)
 	n = size(Y, 1)
 	@assert size(Y, 2) <= n
-	T = UpperTriangular(Array{eltype(Y)}(undef, n, n))
+	T = zeros(eltype(Y), n, n)
 	T[1, 1] = HH_t(Y, 1)
 	@inbounds for i = 2:n
 		T[i, i] = HH_t(Y, i)
 		T[1:i-1, i] = -T[i, i] * (@view T[1:i-1, 1:i-1]) * (@view Y[:, 1:i-1])' * (@view Y[:, i])
 	end
 	T
+end
+
+function updateu!(a::YUH)
+	T = T_matrix(a.Y)
+	a.U .= I - a.Y*T*a.Y'
 end
