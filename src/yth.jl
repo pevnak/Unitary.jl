@@ -51,7 +51,7 @@ function T_matrix(Y::AbstractMatrix)
 	T[1, 1] = HH_t(Y, 1)
 	@inbounds for i = 2:n
 		T[i, i] = HH_t(Y, i)
-		T[1:i-1, i] = -T[i, i] * (@view T[1:i-1, 1:i-1]) * (@view Y[:, 1:i-1])' * (@view Y[:, i])
+		T[1:i-1, i] = @views -T[i, i] * T[1:i-1, 1:i-1] * Y[:, 1:i-1]' * Y[:, i]
 	end
 	T
 end

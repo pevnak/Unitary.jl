@@ -92,7 +92,7 @@ function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY)
 		if transposed
 			leading, tailing = tailing, leading
 		end
-		@simd for j = i:b
+		for j = i:b
 			δU[:, i:b] += (leading * pdiff_reflect(Y[:, i], j) * tailing)[:, i:b] * δY[j, i]
 		end
 	end
@@ -107,36 +107,36 @@ function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::A
 	@assert a==b
 	n = a
 	∇mul = zeros(eltype(Y), n, n)
-	Tail = I - (@view Y[:, 2:n]) * (@view T[2:n, 2:n]) * (@view Y[:, 2:n])'
+	Tail = @views I - Y[:, 2:n] * T[2:n, 2:n] * Y[:, 2:n]'
 	tmp = Array{eltype(Y), 2}(undef, n, n)
 	if transposed
-		@simd for j = 1:n
+		@inbounds for j = 1:n
 			∇mul[j, 1] = sum(Δ.*(Tail * pdiff_reflect(Y[:, 1], j) * x))
 		end
-		for i = 2:(n-1)
+		@inbounds for i = 2:(n-1)
 			#pdiff with regards to the last element is constant zero matrix
-			Lead = I - (@view Y[:, 1:(i-1)]) * (@view T[1:(i-1), 1:(i-1)]) * (@view Y[:, 1:(i-1)])'
-			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
-			@simd for j = i:n
-				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
-				tmp[i, :] = P[1, 1] * (@view Lead[i, :])' + (@view P[1, 2:end])' * (@view Lead[(i+1):n, :])
-				tmp[(i+1):n, :] = Tail * ((@view P[2:end, 1]) * (@view Lead[i, :])' + (@view P[2:end, 2:end]) * (@view Lead[(i+1):n, :]))
-				∇mul[j, i] = sum((@view Δ[i:end, :]).*((@view tmp[i:end, :]) * x))
+			Lead = @views I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]'
+			Tail = @views I - Y[(i+1):n, (i+1):n] * T[(i+1):n, (i+1):n] * Y[(i+1):n, (i+1):n]'
+			for j = i:n
+				P = @views pdiff_reflect(Y[i:n, i], j-i+1)
+				tmp[i, :] = @views P[1, 1] * Lead[i, :]' + P[1, 2:end]' * Lead[(i+1):n, :]
+				tmp[(i+1):n, :] = @views Tail * (P[2:end, 1] * Lead[i, :]' + P[2:end, 2:end] * Lead[(i+1):n, :])
+				∇mul[j, i] = @views sum(Δ[i:end, :] .* (tmp[i:end, :] * x))
 			end
 		end
 	else
-		@simd for j = 1:n
+		@inbounds for j = 1:n
 			∇mul[j, 1] = sum(Δ.*(pdiff_reflect(Y[:, 1], j) * Tail * x))
 		end
-		for i = 2:(n-1)
+		@inbounds for i = 2:(n-1)
 			#pdiff with regards to the last element is constant zero matrix
-			Lead = I - (@view Y[:, 1:(i-1)]) * (@view T[1:(i-1), 1:(i-1)]) * (@view Y[:, 1:(i-1)])'
-			Tail = I - (@view Y[(i+1):n, (i+1):n]) * (@view T[(i+1):n, (i+1):n]) * (@view Y[(i+1):n, (i+1):n])'
-			@simd for j = i:n
-				P = pdiff_reflect((@view Y[i:n, i]), j-i+1)
-				tmp[:, i] = (@view Lead[:, i]) * P[1, 1] + (@view Lead[:, (i+1):end]) * (@view P[2:end, 1])
-				tmp[:, (i+1):n] = ((@view Lead[:, i]) * (@view P[1, 2:end])' + (@view Lead[:, (i+1):end]) * (@view P[2:end, 2:end])) * Tail
-				∇mul[j, i] = sum(Δ.*((@view tmp[:, i:end]) * (@view x[i:end, :])))
+			Lead = @views I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]'
+			Tail = @views I - Y[(i+1):n, (i+1):n] * T[(i+1):n, (i+1):n] * Y[(i+1):n, (i+1):n]'
+			for j = i:n
+				P = @views pdiff_reflect(Y[i:n, i], j-i+1)
+				tmp[:, i] = @views Lead[:, i] * P[1, 1] + Lead[:, (i+1):end] * P[2:end, 1]
+				tmp[:, (i+1):n] = @views (Lead[:, i] * P[1, 2:end]' + Lead[:, (i+1):end] * P[2:end, 2:end]) * Tail
+				∇mul[j, i] = @views sum(Δ .*( tmp[:, i:end] * x[i:end, :]))
 			end
 		end
 	end
@@ -148,9 +148,9 @@ function grad_mul_x(U::AbstractMatrix, x::AbstractMatVec, Δ)
 	b = size(x, 1)
 	a = ndims(x)==1 ? 1 : size(x, 2)
 	∇mul = zeros(eltype(U), b, a)
-	for i = 1:a
-		@simd for j = 1:b
-			∇mul[j, i] = sum((@view Δ[:, i]).*(@view U[:, j]))
+	@inbounds for i = 1:a
+		for j = 1:b
+			∇mul[j, i] = @views sum( Δ[:, i] .* U[:, j])
 		end
 	end
 	∇mul
