@@ -19,7 +19,7 @@ using Unitary: UnitaryMatrix
 end
 
 @testset "Inversions of activation function" begin
-	for f in [identity, selu, tanh, NNlib.σ]
+	for f in [identity, selu, tanh, NNlib.σ, NNlib.leakyrelu]
 		x = -10:1:10
 		@test inv(f).(f.(x)) ≈ x
 		@test inv(f).(f.(-x)) ≈ -x

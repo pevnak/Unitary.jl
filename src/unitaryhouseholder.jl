@@ -59,11 +59,22 @@ function pdiff_t(y, b::Int)
 	- HH_t(y)^2 * y[b]
 end
 
+# function pdiff_reflect(y, b::Int)
+# 	out = - pdiff_t(y, b) * y * y'
+# 	t = HH_t(y)
+# 	@inbounds out[:, b] -= t*y
+# 	@inbounds out[b, :] -= t*y
+# 	out
+# end
+
 function pdiff_reflect(y, b::Int)
-	out = - pdiff_t(y, b) * y *y'
 	t = HH_t(y)
-	@inbounds out[:, b] -= t*y
-	@inbounds out[b, :] -= t*y
+	ty = t * y
+	out = y[b] * ty * ty'
+	@inbounds for i in 1:length(y)
+		out[i, b] -= ty[i]
+		out[b, i] -= ty[i]
+	end
 	out
 end
 

@@ -78,6 +78,10 @@ function invselu(x::T) where {T<:Real}
   ifelse(x > 0, x, log.(1 + x/α + eps(x)))
 end
 
+function invleakyrelu(x::T) where {T<:Real}
+  ifelse(x > 0, x, 100 * x)
+end
+
 
 invtanh(x::Real) = (log(1 + x) - log(1 - x)) / 2
 invσ(x::Real) = log(x) - log(1 - x)
@@ -89,6 +93,8 @@ Base.inv(::typeof(invselu)) = NNlib.selu
 Base.inv(::typeof(invtanh)) = tanh
 Base.inv(::typeof(NNlib.σ)) = invσ
 Base.inv(::typeof(invσ)) = NNlib.σ
+Base.inv(::typeof(NNlib.leakyrelu)) = invleakyrelu
+Base.inv(::typeof(invleakyrelu)) = NNlib.leakyrelu
 
 #define inversion of a Chain
 Base.inv(m::Chain) = Chain(inv.(m.layers[end:-1:1])...)
@@ -97,6 +103,7 @@ Base.inv(m::Chain) = Chain(inv.(m.layers[end:-1:1])...)
 explicitgrad(::typeof(identity), x) = 1f0
 explicitgrad(::typeof(tanh), x) = 1f0 - tanh(x)^2
 explicitgrad(::typeof(NNlib.σ), x) = σ(x)*(1f0 - σ(x))
+explicitgrad(::typeof(NNlib.leakyrelu), x) = ifelse(x > 0, NNlib.oftype(x, 1), NNlib.oftype(x, 0.01))
 function explicitgrad(::typeof(NNlib.selu), x) 
   λ = oftype(x/1, 1.0507009873554804934193349852946)
   α = oftype(x/1, 1.6732632423543772848170429916717)
