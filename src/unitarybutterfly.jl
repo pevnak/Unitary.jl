@@ -51,14 +51,9 @@ end
 	
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-function UnitaryButterfly(n;indexes = :random, maxn = n - 1)
-	idxs = if (indexes == :butterfly)
-		givenses(n)
-	elseif (indexes == :random)
-		randomgivenses(n, min(maxn, n - 1))
-	else error("unknonwn method \"$(indexes)\" of generating givens indexes")
-	end
-	matrices = [Butterfly(i..., n) for i in  idxs]
+function UnitaryButterfly(n)
+	idxs = givenses(n)
+	matrices = [Butterfly(i, n) for i in  idxs]
 	UnitaryButterfly(tuple(matrices...), n)
 end
 

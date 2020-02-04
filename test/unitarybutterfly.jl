@@ -1,5 +1,5 @@
 using Unitary, Test, Flux
-using Unitary: UnitaryButterfly, Butterfly, InPlaceUnitaryButterfly, givenses_column, givenses, filtergivenses
+using Unitary: UnitaryButterfly, Butterfly, InPlaceUnitaryButterfly, givenses_column, givenses
 using FiniteDifferences
 
 @testset "UnitaryButterfly: multiplication, transposition, and, inversion" begin
@@ -40,14 +40,11 @@ end
 
 	for ai in  [InPlaceUnitaryButterfly(a), transpose(InPlaceUnitaryButterfly(a))]
 		Δ = ones(size(x))
-		xs = Unitary.accummulax(ai.θs, ai.is, ai.js, ai.transposed, x)
-		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.is, ai.js, ai.transposed, x)[1], grad(fdm, θ -> sum(Unitary.accummulax(θ, ai.is, ai.js, ai.transposed, x)[1]), ai.θs)[1], atol = 1e-1)
-		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.is, ai.js, ai.transposed, x)[end], grad(fdm, x -> sum(Unitary.accummulax(ai.θs, ai.is, ai.js, ai.transposed, x)[1]), x)[1], atol = 1e-1)
+		xs = Unitary.accummulax(ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)
+		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[1], grad(fdm, θ -> sum(Unitary.accummulax(θ, ai.θi, ai.is, ai.js, ai.transposed, x)[1]), ai.θs)[1], atol = 1e-1)
+		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[end], grad(fdm, x -> sum(Unitary.accummulax(ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[1]), x)[1], atol = 1e-1)
 	end
 end
-
-
-
 
 @testset "UnitaryButterfly: integration with Flux" begin
 	a = Butterfly(randn(2), [1,3], [2,4], 4)
@@ -62,34 +59,3 @@ end
 	gs = Flux.gradient(() -> sum(sin.(x * ub)),ps) 
 	@test all([gs[p.θ] != nothing for p in [a,b,c]])
 end
-
-
-@testset "Generation of givens transformations" begin
-	@test all(givenses_column(16, 8) .== ([1, 2, 3, 4, 5, 6, 7, 8], [9, 10, 11, 12, 13, 14, 15, 16]))
-	@test all(givenses_column(16, 4) .== ([1, 2, 3, 4, 9, 10, 11, 12], [5, 6, 7, 8, 13, 14, 15, 16]))
-	@test all(givenses_column(8, 4) .== ([1,2,3,4],[5,6,7,8]))
-	@test all(givenses_column(8, 2) .== ([1,2,5,6],[3,4,7,8]))
-	@test all(givenses_column(8, 1) .== ([1,3,5,7],[2,4,6,8]))
-
-	@test all(filtergivenses(4, ([1, 3, 5, 7], [2, 4, 6, 8])) .== ([1, 3], [2, 4]))
-	@test all(filtergivenses(6, ([1, 3, 5, 7], [2, 4, 6, 8])) .== ([1, 3, 5], [2, 4, 6]))
-
-	@test all(givenses(8) .== 
-	(([1, 3, 5, 7], [2, 4, 6, 8]), 
-	 ([1, 2, 5, 6], [3, 4, 7, 8]), 
-	 ([1, 3, 5, 7], [2, 4, 6, 8]), 
-	 ([1, 2, 3, 4], [5, 6, 7, 8]), 
-	 ([1, 3, 5, 7], [2, 4, 6, 8]), 
-	 ([1, 2, 5, 6], [3, 4, 7, 8]), 
-	 ([1, 3, 5, 7], [2, 4, 6, 8])))
-
-	@test all(givenses(6) .== 
-	(([1, 3, 5 ], [2, 4, 6]), 
-	 ([1, 2], [3, 4]), 
-	 ([1, 3, 5 ], [2, 4, 6]), 
-	 ([1, 2], [5, 6]), 
-	 ([1, 3, 5 ], [2, 4, 6]), 
-	 ([1, 2], [3, 4]), 
-	 ([1, 3, 5 ], [2, 4, 6])))
-end
-

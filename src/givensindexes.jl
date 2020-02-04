@@ -7,29 +7,24 @@ function givenses_column(n, δ)
 end
 
 function givenses(n) 
-	k = 2^(ceil(Int, log2(n)))
-	δ = div(k, 2)
-	filtergivenses.(n, _givenses(k, δ))
+	p = [(i,j) for i in 1:n for j in i+1:n]
+	r = []
+	while !isempty(p)
+		s, p = nonoverlapping(p)
+		push!(r, s)
+	end
+	tuple(r...)
 end
 
-function _givenses(n, δ)
-	δ < 1 && error("cannot return givens transformations smaller than one")
-	δ == 1 && return((givenses_column(n,1),))
-	(_givenses(n, div(δ,2))..., givenses_column(n, δ), _givenses(n, div(δ,2))...)
-end
-
-function filtergivenses(n, g::Tuple{Vector,Vector})
-	i, j = g
-	mask = (i .<= n) .& (j .<= n)
-	i[mask], j[mask]
-end
-
-
-function randomgivenses(n, m = n - 1)
-	k = div(n, 2)
-	idxs = map(1:m) do _ 
-		p = randperm(n)
-		(p[1:k], p[k+1:2k])
-	end 
-	tuple(idxs...)
+function nonoverlapping(p)
+	r = Vector{Tuple{Int,Int}}()
+	u = Vector{Int}()
+	ii = fill(false, length(p))
+	for (i, (k,l)) in enumerate(p)
+		if k ∉ u && l ∉ u 
+			append!(u, [k,l])
+			ii[i] = true
+		end
+	end
+	return(tuple(p[ii]...), p[.!ii])
 end

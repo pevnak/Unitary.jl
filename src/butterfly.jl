@@ -3,7 +3,7 @@ struct Butterfly{N, T<:Number}
 	i::NTuple{N,Int}
 	j::NTuple{N,Int}	
 	n::Int
-	function Butterfly(θ::Vector{T}, i::Vector, j::Vector, n) where {T<:Number}
+	function Butterfly(θ::Vector{T}, i, j, n) where {T<:Number}
 		@assert length(θ) == length(i) == length(j)
 		@assert maximum(i) <= n  
 		@assert maximum(j) <= n  
@@ -14,6 +14,12 @@ struct Butterfly{N, T<:Number}
 end
 
 Butterfly(i, j, n) = Butterfly(Float32.(2π*rand(length(i))), i, j, n)
+function Butterfly(ij::NTuple{N, T}, n) where {N, T<:Tuple{Int,Int}} 
+	i = map(k -> k[1], ij)
+	j = map(k -> k[2], ij)
+	Butterfly(Float32.(2π*rand(length(i))), i, j, n)
+end
+Butterfly(ij::Tuple, n) = Butterfly((ij,), n)
 
 struct TransposedButterfly{B<:Butterfly} 
 	parent::B
@@ -74,12 +80,6 @@ mul!(o, x::TransposedMatVec, a::TransposedButterfly) = _mulxa!(o, x, a.parent.θ
 
 # # @adjoint Butterfly(θ) = Butterfly(θ), Δ -> (Butterfly(Δ),)
 # # @adjoint TransposedButterfly(θ) = TransposedButterfly(θ), Δ -> (TransposedButterfly(Δ),)
-
-function threadpart(i, n)
-	nt = Threads.nthreads()
-	δ = ceil(Int, n / nt)
-	((i-1)*δ + 1):min(n, i*δ)
-end
 """
 	_mulax(θ::Vector, x::MatVec)
 

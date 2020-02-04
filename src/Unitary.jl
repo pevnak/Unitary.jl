@@ -14,8 +14,9 @@ include("unitarybutterfly.jl")
 include("inplaceunitarybutterfly.jl")
 include("givensindexes.jl")
 include("diagonalrectangular.jl")
-include("svd.jl")
 include("unitaryhouseholder.jl")
+include("svd.jl")
+include("scaleshift.jl")
 
 export UnitaryHouseholder, UnitaryButterfly, SVDDense
 end # module

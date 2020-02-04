@@ -19,11 +19,12 @@ Flux.@functor SVDDense
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-function SVDDense(n::Int, σ, unitary = :householder; indexes = :random, maxn::Int = n)
+function SVDDense(n::Int, σ, unitary = :householder)
+	n == 1 && return(ScaleShift(1, σ))
 	if unitary == :householder
 		return(_svddense_householder(n, σ))
 	elseif unitary == :butterfly
-		return(_svddense_butterfly(n, σ, maxn = maxn, indexes = indexes))
+		return(_svddense_butterfly(n, σ))
 	else 
 		@error "unknown type of unitary matrix $unitary"
 	end
@@ -32,10 +33,10 @@ end
 
 using LinearAlgebra
 
-_svddense_butterfly(n::Int, σ; indexes = :random, maxn::Int = n) = 
-	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)), 
+_svddense_butterfly(n::Int, σ) = 
+	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n)), 
 			DiagonalRectangular(rand(Float32,n), n, n),
-			InPlaceUnitaryButterfly(UnitaryButterfly(n, indexes = indexes, maxn = maxn)),
+			InPlaceUnitaryButterfly(UnitaryButterfly(n)),
 			zeros(Float32,n),
 			σ)
 
@@ -46,11 +47,11 @@ _svddense_householder(n::Int, σ) =
 			zeros(Float32,n),
 			σ)
 
-(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x .+ m.b)))
+(m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x)) .+ m.b)
 
 function (m::SVDDense)(xx::Tuple)
 	x, logdet = xx
-	pre = m.u * (m.d * (m.v * x .+ m.b)) 
+	pre = m.u * (m.d * (m.v * x)) .+ m.b
 	g = explicitgrad.(m.σ, pre)
 	(m.σ.(pre), logdet .+ sum(log.(g), dims = 1) .+ _logabsdet(m.d))
 end
@@ -67,7 +68,7 @@ Flux.@functor InvertedSVDDense
 Base.inv(m::SVDDense) = InvertedSVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 Base.inv(m::InvertedSVDDense) = SVDDense(inv(m.u), inv(m.d), inv(m.v), m.b, inv(m.σ))
 
-(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * (m.d * (m.u * (m.σ.(x)))) .- m.b
+(m::InvertedSVDDense)(x::AbstractMatVec)  = m.v * (m.d * (m.u * (m.σ.(x) .- m.b))) 
 
 #define inversions of the most common functions
 # λ * ifelse(x > 0, x/1, α * (exp(x) - 1))
@@ -83,7 +84,11 @@ function invleakyrelu(x::T) where {T<:Real}
 end
 
 
-invtanh(x::Real) = (log(1 + x) - log(1 - x)) / 2
+function invtanh(x::Real) 
+	x = min(x, 0.9999f0)
+	x = max(x, -0.9999f0)
+	(log(1 + x) - log(1 - x)) / 2
+end
 invσ(x::Real) = log(x) - log(1 - x)
 
 Base.inv(::typeof(identity)) = identity
