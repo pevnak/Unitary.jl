@@ -1,5 +1,5 @@
 using Unitary, Test, Flux
-using Unitary: UnitaryButterfly, Butterfly, InPlaceUnitaryButterfly, givenses_column, givenses
+using Unitary: UnitaryButterfly, Butterfly, InPlaceUnitaryButterfly, givenses
 using FiniteDifferences
 
 @testset "UnitaryButterfly: multiplication, transposition, and, inversion" begin

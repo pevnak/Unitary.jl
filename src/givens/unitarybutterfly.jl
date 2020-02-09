@@ -14,9 +14,6 @@ Base.inv(a::UnitaryButterfly) = transpose(a)
 Base.show(io::IO, a::UnitaryButterfly) = print(io, "$(a.n)x$(a.n) Unitary with $(length(a.matrices)) butterfly matrices")
 Base.zero(a::UnitaryButterfly) = Butterfly(zero(a.θ), a.i, a.j, a.n)
 
-# *(a::UnitaryButterfly, x::TransposedMatVec) = foldr((u,v) -> u*v, a.matrices, init = x)
-# *(x::TransposedMatVec, a::UnitaryButterfly) = foldl((u,v) -> u*v, a.matrices, init = x)
-
 function *(a::UnitaryButterfly, x::TransposedMatVec)
 	@assert size(x,1) == a.n
 	# switch between differentiable and efficient in-place operation

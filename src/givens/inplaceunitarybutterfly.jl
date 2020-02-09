@@ -20,25 +20,29 @@ Base.inv(a::InPlaceUnitaryButterfly) = transpose(a)
 Base.show(io::IO, a::InPlaceUnitaryButterfly) = print(io, "$(a.n)x$(a.n) Unitary with $(size(a.θs,2)) butterfly matrices")
 Base.zero(a::InPlaceUnitaryButterfly) = InPlaceUnitaryButterfly(zero(a.θ), a.i, a.j, a.transposed, a.n)
 
-# *(a::InPlaceUnitaryButterfly, x::TransposedMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.is, a.js, a.transposed, x))
-# *(x::TransposedMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.is, a.js, a.transposed))
 *(a::InPlaceUnitaryButterfly, x::AbstractMatVec) = (@assert size(x,1) == a.n; _buttermulax(a.θs, a.θi, a.is, a.js, a.transposed, x))
 *(x::AbstractMatVec, a::InPlaceUnitaryButterfly) = (@assert size(x,2) == a.n; _buttermulxa(x, a.θs, a.θi, a.is, a.js, a.transposed))
 
-_buttermulax(θs, θi, is, js, transposed, x) = accummulax(θs, θi, is, js, transposed, x)[1]
 _buttermulxa(x, θs, θi, is, js, transposed) = accummulxa(x, θs, θi, is, js, transposed)[end]
 
-function accummulax(θs, θi, is, js, transposed, x) 
-	n = length(is)
-	xs = Vector{typeof(x)}(undef, n+1)
-	xs[end] = deepcopy(x)
+function _buttermulax(θs, θi, is, js, transposed, x) 
+	o = deepcopy(x)
 	for i in n:-1:1
-		x = xs[i+1]
-		o = deepcopy(x);
 		_mulax!(o, θs[θi[i]], is[i], js[i], x, transposed)
-		 xs[i] = o
 	end
 	xs
+end
+
+function _∇buttermulax(Δ, o, θs, θi, is, js, transposed, x) 
+	n = length(is)
+	Δ = deepcopy(Δ);
+	δθ = similar(θs);
+	for i in 1:n
+		_mulax!(x, θs[θi[i]], is[i], js[i], x, -transposed)
+		δθ[θi[i]] = _∇mulax(Δ, θs[θi[i]], is[i], js[i], x, transposed)
+		_mulax!(Δ, θs[θi[i]], is[i], js[i], Δ, -transposed)
+	end
+	(δθ, nothing, nothing, nothing, nothing, Δ)
 end
 
 function accummulxa(x, θs, θi, is, js, transposed) 
@@ -52,17 +56,6 @@ function accummulxa(x, θs, θi, is, js, transposed)
 		xs[i+1] = o
 	end
 	xs
-end
-
-function _∇buttermulax(Δ, xs, θs, θi, is, js, transposed, x) 
-	n = length(is)
-	Δ = deepcopy(Δ);
-	δθ = similar(θs);
-	for i in 1:n
-		δθ[θi[i]] = _∇mulax(Δ, θs[θi[i]], is[i], js[i], xs[i+1], transposed)
-		 _mulax!(Δ, θs[θi[i]], is[i], js[i], Δ, -transposed)
-	end
-	(δθ, nothing, nothing, nothing, nothing, Δ)
 end
 
 function _∇buttermulxa(Δ, xs, x, θs, θi, is, js, transposed) 
