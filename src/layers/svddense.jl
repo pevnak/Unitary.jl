@@ -23,7 +23,7 @@ function SVDDense(n::Int, σ, unitary = :householder)
 	n == 1 && return(ScaleShift(1, σ))
 	if unitary == :householder
 		return(_svddense_householder(n, σ))
-	elseif unitary == :butterfly
+	elseif unitary == :butterfly || unitary == :givens
 		return(_svddense_butterfly(n, σ))
 	else 
 		@error "unknown type of unitary matrix $unitary"
