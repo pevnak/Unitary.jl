@@ -57,14 +57,14 @@ end
 
 
 *(a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.θs, a.idxs, x, 1))
-*(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
+# *(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
 *(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θs, a.parent.idxs, x, -1))
-*(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
+# *(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
 
 mul!(o, a::Butterfly, x::TransposedMatVec) = _mulax!(o, a.θs, a.idxs, x, 1)
-mul!(o, x::TransposedMatVec, a::Butterfly) = _mulxa!(o, x, a.θs, a.idxs, 1)
+# mul!(o, x::TransposedMatVec, a::Butterfly) = _mulxa!(o, x, a.θs, a.idxs, 1)
 mul!(o, a::TransposedButterfly, x::TransposedMatVec) = _mulax!(o, a.parent.θs, a.parent.idxs, x, -1)
-mul!(o, x::TransposedMatVec, a::TransposedButterfly) = _mulxa!(o, x, a.parent.θs, a.parent.idxs, -1)
+# mul!(o, x::TransposedMatVec, a::TransposedButterfly) = _mulxa!(o, x, a.parent.θs, a.parent.idxs, -1)
 """
 	_mulax(θ::Vector, x::MatVec)
 
