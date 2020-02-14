@@ -1,6 +1,7 @@
 using Unitary, Test, Flux
-using Unitary: UnitaryButterfly, Butterfly, InPlaceUnitaryButterfly, givenses
+using Unitary: Butterfly
 using FiniteDifferences
+using Unitary: _mulax!, _∇mulax
 
 @testset "UnitaryButterfly: multiplication, transposition, and, inversion" begin
 	a = Butterfly(randn(2), [1,3], [2,4], 4)
@@ -29,21 +30,26 @@ using FiniteDifferences
 end
 
 @testset "inplace multiplication" begin 
-	a = UnitaryButterfly(5)
-	ai = InPlaceUnitaryButterfly(a)
+	a = Butterfly(5)
 	x = randn(5,5)
-	@test a*x ≈ ai * x
-	@test transpose(a)*x ≈ transpose(ai) * x
-	@test x*a ≈ x*ai
-	@test x*transpose(a) ≈ x*transpose(ai)
 	fdm = central_fdm(5, 1)
+	o = a * x;
+	Δ = ones(size(x));
+	∇θ = _∇mulax(Δ, a.θs, a.idxs, o, 1)[1]
 
-	for ai in  [InPlaceUnitaryButterfly(a), transpose(InPlaceUnitaryButterfly(a))]
-		Δ = ones(size(x))
-		xs = Unitary.accummulax(ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)
-		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[1], grad(fdm, θ -> sum(Unitary.accummulax(θ, ai.θi, ai.is, ai.js, ai.transposed, x)[1]), ai.θs)[1], atol = 1e-1)
-		@test isapprox(Unitary._∇buttermulax(Δ, xs, ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[end], grad(fdm, x -> sum(Unitary.accummulax(ai.θs, ai.θi, ai.is, ai.js, ai.transposed, x)[1]), x)[1], atol = 1e-1)
+	function f(x,θs,idxs) 
+		o = deepcopy(x)
+		for i in 1:length(idxs)
+			_mulax!(o, cos(θs[i]), sin(θs[i]), idxs[i][1], idxs[i][2], o, 1)
+		end
+		o
 	end
+	∇θr = grad(fdm, θ -> sum(f(x,θ,a.idxs)), a.θs)[1]
+	@test ∇θ ≈ ∇θr
+
+	ps = Flux.params(a)
+	∇θr = gradient(() -> sum(a * x), ps)[a.θs]
+	@test ∇θr ≈ ∇θr
 end
 
 @testset "UnitaryButterfly: integration with Flux" begin
