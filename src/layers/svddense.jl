@@ -34,9 +34,9 @@ end
 using LinearAlgebra
 
 _svddense_butterfly(n::Int, σ) = 
-	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n)), 
+	SVDDense(Butterfly(n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
-			InPlaceUnitaryButterfly(UnitaryButterfly(n)),
+			Butterfly(n),
 			0.01f0.*randn(Float32,n),
 			σ)
 

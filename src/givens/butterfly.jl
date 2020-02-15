@@ -18,13 +18,7 @@ Flux.@functor Butterfly
 Flux.@functor TransposedButterfly
 
 function Base.Matrix(a::Butterfly{T}) where {T}
-	A = zeros(T, a.n, a.n)
-	for k = 1:N
-		θ, i, j = a.θ[k], a.i[k], a.j[k]
-		A[i,i], A[i,j] =  cos(θ), -sin(θ);
-		A[j,i], A[j,j] =  sin(θ),  cos(θ);		
-	end
-	A
+	a * T.(Matrix(I(a.n))) 
 end
 
 Base.Matrix(a::TransposedButterfly) = transpose(Matrix(a.parent))
@@ -57,14 +51,10 @@ end
 
 
 *(a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.θs, a.idxs, x, 1))
-# *(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
+*(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
 *(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θs, a.parent.idxs, x, -1))
-# *(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
+*(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
 
-mul!(o, a::Butterfly, x::TransposedMatVec) = _mulax!(o, a.θs, a.idxs, x, 1)
-# mul!(o, x::TransposedMatVec, a::Butterfly) = _mulxa!(o, x, a.θs, a.idxs, 1)
-mul!(o, a::TransposedButterfly, x::TransposedMatVec) = _mulax!(o, a.parent.θs, a.parent.idxs, x, -1)
-# mul!(o, x::TransposedMatVec, a::TransposedButterfly) = _mulxa!(o, x, a.parent.θs, a.parent.idxs, -1)
 """
 	_mulax(θ::Vector, x::MatVec)
 
@@ -81,7 +71,8 @@ _mulax(θs, idxs, x, t) = _mulax!(deepcopy(x), θs, idxs, x, t)
 end
 
 function _mulax!(o, θs, idxs, x, t)
-	for k in 1:length(idxs)
+	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
+	for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		_mulax!(o, cosθ, sinθ, idxs[k][1], idxs[k][2], o, t)
 	end
@@ -96,7 +87,8 @@ end
 function _∇mulax(Δ, θs, idxs, o, t)
 	∇θ = similar(θs)
 	Δ = deepcopy(Matrix(Δ))
-	for k in length(idxs):-1:1
+	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
+	for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		i,j = idxs[k][1], idxs[k][2]
 		_mulax!(o, cosθ, sinθ, i, j, o, -t) #compute the input
@@ -115,41 +107,55 @@ end
 	return(Δθ)
 end
 
-# _mulxa(x, θs, is, js, t) = _mulxa!(deepcopy(x), x, θs, is, js, t)
+_mulxa(x, θs, idxs, t) = _mulxa!(deepcopy(x), x, θs, idxs, t)
 
-# function _mulxa!(o, x, θs, is, js, t)
-# 	@assert size(o) == size(x)
-# 	cosθs, sinθs = cos.(θs), sin.(θs)
-# 	for k = 1:length(is)
-# 		@inbounds for c in 1:size(x, 1)
-# 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-# 			xi, xj = x[c, i], x[c, j]	#this makes it safe to rewrite the inpur
-# 			o[c, i] =    cosθ * xi + t*sinθ * xj
-# 			o[c, j] =  - t*sinθ * xi + cosθ * xj
-# 		end
-# 	end
-# 	o
-# end
+function _mulxa!(o, x, θs, idxs, t)
+	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
+	for k in order
+		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		_mulxa!(o, o, cosθ, sinθ, idxs[k][1], idxs[k][2], t)
+	end
+	o
+end
 
-# function _∇mulxa(Δ, x, θs, is, js, t)
-# 	∇θ = similar(θs)
-# 	cosθs, sinθs = cos.(θs), sin.(θs)
-# 	fill!(∇θ, 0)
-# 	for c in 1:size(x, 1)
-# 		@inbounds for k = 1:length(is)
-# 			sinθ, cosθ, i, j = sinθs[k], cosθs[k], is[k], js[k]	
-# 			∇θ[k] +=  Δ[c, i] * (-sinθ * x[c, i] + t*cosθ * x[c, j])
-# 			∇θ[k] +=  Δ[c, j] * (-t*cosθ * x[c, i] - sinθ * x[c, j])
-# 		end
-# 	end
-# 	∇θ
-# end
+@inline function _mulxa!(o, x, cosθ::Number, sinθ::Number, i::Int, j::Int, t::Int)
+	for c in 1:size(x, 1)
+		xi, xj = x[c, i], x[c, j]	#this makes it safe to rewrite the inpur
+		o[c, i] =    cosθ * xi + t*sinθ * xj
+		o[c, j] =  - t*sinθ * xi + cosθ * xj
+	end
+end
+
+function _∇mulxa(Δ, o, θs, idxs, t)
+	∇θ = similar(θs)
+	Δ = deepcopy(Matrix(Δ))
+	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
+	for k in order
+		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		i,j = idxs[k][1], idxs[k][2]
+		_mulxa!(o, o, cosθ, sinθ, i, j, -t) #compute the input
+		∇θ[k] = _∇mulxa(Δ, o, cosθ, sinθ, i, j, t) #compute the gradient
+		_mulxa!(Δ, Δ, cosθ, sinθ, i, j, -t) # computer the gradient of input
+	end
+	(Δ, ∇θ, nothing, nothing)
+end
+
+@inline function _∇mulxa(Δ, x, cosθ::Number, sinθ::Number, i::Int, j::Int, t::Int)
+	Δθ = zero(cosθ)
+	@inbounds for c in 1:size(Δ, 1)
+		Δθ +=  Δ[c, i] * (-sinθ * x[c, i] + t*cosθ * x[c, j])
+		Δθ +=  Δ[c, j] * (-t*cosθ * x[c, i] - sinθ * x[c, j])
+	end
+	return(Δθ)
+end
+
 
 Zygote.@adjoint function _mulax(θs, idxs, x, t)
 	o = _mulax(θs, idxs, x, t)
 	return(o, Δ -> _∇mulax(Δ, θs, idxs, o, t))
 end
 
-# @adjoint function _mulxa(x, θs, is, js, t)
-# 	return _mulxa(x, θs, is, js, t) , Δ -> (_mulxa(Δ, θs, is, js, -t), _∇mulxa(Δ, x, θs, is, js, t), nothing, nothing, nothing)
-# end
+Zygote.@adjoint function _mulxa(x, θs, idxs, t)
+	o = _mulxa(x, θs, idxs, t)
+	return(o, Δ -> _∇mulxa(Δ, o, θs, idxs, t))
+end
