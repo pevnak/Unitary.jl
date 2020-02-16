@@ -23,7 +23,7 @@ function SVDDense(n::Int, σ, unitary = :householder)
 	n == 1 && return(ScaleShift(1, σ))
 	if unitary == :householder
 		return(_svddense_householder(n, σ))
-	elseif unitary == :butterfly
+	elseif unitary == :butterfly || unitary == :givens
 		return(_svddense_butterfly(n, σ))
 	else 
 		@error "unknown type of unitary matrix $unitary"
@@ -34,17 +34,17 @@ end
 using LinearAlgebra
 
 _svddense_butterfly(n::Int, σ) = 
-	SVDDense(InPlaceUnitaryButterfly(UnitaryButterfly(n)), 
+	SVDDense(Butterfly(n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
-			InPlaceUnitaryButterfly(UnitaryButterfly(n)),
-			randn(Float32,n),
+			Butterfly(n),
+			0.01f0.*randn(Float32,n),
 			σ)
 
 _svddense_householder(n::Int, σ) = 
 	SVDDense(UnitaryHouseholder(Float32, n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
 			UnitaryHouseholder(Float32, n) ,
-			randn(Float32,n),
+			0.01f0.*randn(Float32,n),
 			σ)
 
 (m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x)) .+ m.b)
