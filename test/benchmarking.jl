@@ -1,47 +1,19 @@
-using Unitary, Test, Flux, BenchmarkTools, Statistics
-using Unitary: UnitaryButterfly, Butterfly, randomgivenses
+using Unitary, Flux, BenchmarkTools
+using Unitary: Butterfly, UnitaryButterfly
 
+x = randn(Float32, 50, 100)
+xx = randn(Float32, 100, 50)
 
-function benchmarksingle(d, l = 100)
-	a = Butterfly(randn(div(d,2)), randomgivenses(d)[1]..., d)
-	x = randn(d, l)
-	ts = [@elapsed a*x for i in 1:100]
-	println("d = ",d," median: ", median(ts), "  mean ", mean(ts))
-end
+a = Butterfly(50)
+ta = transpose(a)
+@btime a * x;		# 217.676 μs (4 allocations: 20.00 KiB)
+@btime xx * a;		# 244.549 μs (4 allocations: 20.00 KiB)
+@btime ta * x;		# 220.292 μs (4 allocations: 20.00 KiB
+@btime xx * ta;		# 244.097 μs (4 allocations: 20.00 KiB)
 
-function benchmarkall(d, l = 100)
-	a = UnitaryButterfly(d)
-	x = randn(d, l)
-	ts = [@elapsed a*x for i in 1:100]
-	println("d = ",d," median: ", median(ts), "  mean ", mean(ts))
-end
+ps = Flux.params(a)
+@btime gradient(() -> sum(a * x), ps);	# 890.323 μs (58 allocations: 71.52 KiB)
+@btime gradient(() -> sum(xx * a), ps);	# 473.158 μs (58 allocations: 71.52 KiB)
+@btime gradient(() -> sum(ta * x), ps);	# 905.690 μs (66 allocations: 71.72 KiB)
+@btime gradient(() -> sum(xx * ta), ps);# 476.453 μs (66 allocations: 71.72 KiB)
 
-# foreach(d -> benchmarksingle(2^d, 100), 2:9)
-foreach(d -> benchmarkall(2^d, 100), 7:9)
-
-
-
-d, l = 256, 100
-a, x = UnitaryButterfly(d), randn(d, l)
-@btime a * x;
-# d = 256: 31.830 ms (1530 allocations: 50.48 MiB)
-
-# 1 thread
-# d = 128 median: 0.0039161935  mean 0.0048265533199999995
-# d = 256 median: 0.036817067499999995  mean 0.03741094838
-# d = 512 median: 0.138168415  mean 0.13870060212000002
-
-# 2 threads
-# d = 128 median: 0.0052984615  mean 0.013383723930000003
-# d = 256 median: 0.0386333265  mean 0.039622609100000004
-# d = 512 median: 0.137985156  mean 0.13912592216
-
-# 4 threads
-# d = 128 median: 0.005685899499999999  mean 0.01421938149
-# d = 256 median: 0.0393440205  mean 0.040341021020000006
-# d = 512 median: 0.1364668985  mean 0.13833719031000002
-
-# 8 threads
-# d = 128 median: 0.014580228  mean 0.019109436480000002
-# d = 256 median: 0.09941320849999999  mean 0.12210359605000001
-# d = 512 median: 0.2842547635  mean 0.3338837798

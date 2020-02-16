@@ -41,11 +41,11 @@ Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
 
 
 Zygote.@adjoint function LinearAlgebra.transpose(x::TransposedButterfly)
-  return transpose(x), Δ -> (TransposedButterfly(Δ.θ),)
+  return(transpose(x), Δ -> (TransposedButterfly(Δ.θ),))
 end
 
 Zygote.@adjoint function LinearAlgebra.transpose(x::Butterfly)
-  return transpose(x), Δ -> (Butterfly(Δ.θ),)
+  return transpose(x), Δ -> (Butterfly(Δ.parent.θs, x.idxs, x.n),)
 end
 
 
@@ -72,7 +72,7 @@ end
 
 function _mulax!(o, θs, idxs, x, t)
 	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
-	for k in order
+	@inbounds for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		_mulax!(o, cosθ, sinθ, idxs[k][1], idxs[k][2], o, t)
 	end
@@ -88,7 +88,7 @@ function _∇mulax(Δ, θs, idxs, o, t)
 	∇θ = similar(θs)
 	Δ = deepcopy(Matrix(Δ))
 	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
-	for k in order
+	@inbounds for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		i,j = idxs[k][1], idxs[k][2]
 		_mulax!(o, cosθ, sinθ, i, j, o, -t) #compute the input
@@ -111,7 +111,7 @@ _mulxa(x, θs, idxs, t) = _mulxa!(deepcopy(x), x, θs, idxs, t)
 
 function _mulxa!(o, x, θs, idxs, t)
 	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
-	for k in order
+	@inbounds for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		_mulxa!(o, o, cosθ, sinθ, idxs[k][1], idxs[k][2], t)
 	end
@@ -119,7 +119,7 @@ function _mulxa!(o, x, θs, idxs, t)
 end
 
 @inline function _mulxa!(o, x, cosθ::Number, sinθ::Number, i::Int, j::Int, t::Int)
-	for c in 1:size(x, 1)
+	@inbounds for c in 1:size(x, 1)
 		xi, xj = x[c, i], x[c, j]	#this makes it safe to rewrite the inpur
 		o[c, i] =    cosθ * xi + t*sinθ * xj
 		o[c, j] =  - t*sinθ * xi + cosθ * xj
@@ -130,7 +130,7 @@ function _∇mulxa(Δ, o, θs, idxs, t)
 	∇θ = similar(θs)
 	Δ = deepcopy(Matrix(Δ))
 	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
-	for k in order
+	@inbounds for k in order
 		cosθ, sinθ = cos(θs[k]), sin(θs[k])
 		i,j = idxs[k][1], idxs[k][2]
 		_mulxa!(o, o, cosθ, sinθ, i, j, -t) #compute the input
