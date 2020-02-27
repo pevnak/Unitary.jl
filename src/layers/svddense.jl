@@ -49,7 +49,7 @@ _svddense_householder(n::Int, σ) =
 
 (m::SVDDense)(x::AbstractMatVec) = m.σ.(m.u * (m.d * (m.v * x)) .+ m.b)
 
-function (m::SVDDense)(xx::Tuple)
+function (m::SVDDense)(xx::Tuple{A,B}) where {A,B}
 	x, logdet = xx
 	pre = m.u * (m.d * (m.v * x)) .+ m.b
 	g = explicitgrad.(m.σ, pre)
