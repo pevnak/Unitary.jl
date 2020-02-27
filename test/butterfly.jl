@@ -1,5 +1,5 @@
 using Unitary, Test, Flux
-using Unitary: Butterfly
+using Unitary: Butterfly, ButterflyParams
 using FiniteDifferences
 using Unitary: _mulax!, _∇mulax, _∇mulxa
 

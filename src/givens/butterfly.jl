@@ -1,28 +1,51 @@
-struct Butterfly{T} 
+struct ButterflyParams{T}
 	θs::Vector{T}
-	idxs::Vector{Tuple{Int,Int}}
+	idxs::Vector{Tuple{Int,Int}}	
+	x::Matrix{T}
+	function ButterflyParams(θs::Vector{T}, idxs, x::Matrix{T}) where {T}
+		a = new{T}(θs, idxs, x)
+		updatex!(a)
+		a
+	end
+end
+
+function ButterflyParams(T, n::Int) 
+	idxs = [(i,j) for i in 1:n for j in i+1:n];
+	ϴs = 2π*rand(T,length(idxs));
+	ButterflyParams(ϴs, idxs, zeros(T, n, n))
+end
+
+
+function ButterflyParams(θs::Vector{T}, idxs, n::Int) where {T}
+	ButterflyParams(θs, idxs, zeros(T, n, n))
+end
+
+function updatex!(a::ButterflyParams{T}) where {T}
+	x = a.x
+	x .= I(size(x,1))
+	_mulax!(x, a, x, 1)
+	x
+end
+
+struct Butterfly{T} 
+	a::ButterflyParams{T}
 	n::Int
 end
 
-function Butterfly(n) 
-	idxs = [(i,j) for i in 1:n for j in i+1:n];
-	θs = 2π*rand(Float32,length(idxs));
-	Butterfly(θs, idxs, n)
-end
+Butterfly(n::Int) = Butterfly(ButterflyParams(Float64,n), n)
+Butterfly(T::DataType, n::Int) = Butterfly(ButterflyParams(T,n), n)
+Butterfly(θs, idxs, n) = Butterfly(ButterflyParams(θs, idxs, n), n)
 
 struct TransposedButterfly{B<:Butterfly} 
 	parent::B
 end
 
+Flux.trainable(a::Butterfly) = (a.b)
 Flux.@functor Butterfly
 Flux.@functor TransposedButterfly
 
-function Base.Matrix(a::Butterfly{T}) where {T}
-	a * T.(Matrix(I(a.n))) 
-end
-
-Base.Matrix(a::TransposedButterfly) = transpose(Matrix(a.parent))
-
+Base.Matrix(a::TransposedButterfly) = transpose(a.parent.a.x)
+Base.Matrix(a::Butterfly) = transpose(a.a.x)
 
 Base.size(a::Butterfly) = (a.n,a.n)
 Base.size(a::Butterfly, i::Int) = a.n
@@ -34,7 +57,7 @@ LinearAlgebra.transpose(a::Butterfly) = TransposedButterfly(a)
 LinearAlgebra.transpose(a::TransposedButterfly) = a.parent
 Base.inv(a::Butterfly) = transpose(a)
 Base.inv(a::TransposedButterfly) = transpose(a)
-Base.show(io::IO, a::Butterfly) = print(io, "Butterfly ",a.θs)
+Base.show(io::IO, a::Butterfly) = print(io, "Butterfly ",a.a.θs)
 Base.show(io::IO, a::TransposedButterfly) = print(io, "Butterflyᵀ ",a.parent.θ)
 Base.zero(a::Butterfly) = Butterfly(zero(a.θs), a.i, a.j, a.n)
 Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
@@ -50,17 +73,17 @@ end
 
 
 
-*(a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.θs, a.idxs, x, 1))
-*(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
-*(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θs, a.parent.idxs, x, -1))
-*(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
+*(a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.a, x, 1))
+*(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.a, 1))
+*(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.a, x, -1))
+*(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.a, -1))
 
 """
 	_mulax(θ::Vector, x::MatVec)
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-_mulax(θs, idxs, x, t) = _mulax!(deepcopy(x), θs, idxs, x, t)
+_mulax(a::ButterflyParams, x, t) = _mulax!(deepcopy(x), a, x, t)
 
 @inline function _mulax!(o, cosθ::Number, sinθ::Number, i::Int, j::Int, x, t::Int)
 	@inbounds for c in 1:size(x, 2)
@@ -70,11 +93,11 @@ _mulax(θs, idxs, x, t) = _mulax!(deepcopy(x), θs, idxs, x, t)
 	end
 end
 
-function _mulax!(o, θs, idxs, x, t)
-	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
+function _mulax!(o, a::ButterflyParams, x, t)
+	order = t == 1 ? (1:length(a.idxs)) : (length(a.idxs):-1:1)
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
-		_mulax!(o, cosθ, sinθ, idxs[k][1], idxs[k][2], o, t)
+		cosθ, sinθ = cos(a.θs[k]), sin(a.θs[k])
+		_mulax!(o, cosθ, sinθ, a.idxs[k][1], a.idxs[k][2], o, t)
 	end
 	o
 end
@@ -84,13 +107,13 @@ end
 
 	multiply Unitary matrix defined by a rotation angle `θ` by a Matrix x
 """
-function _∇mulax(Δ, θs, idxs, o, t)
+function _∇mulax(Δ, a::ButterflyParams, o, t)
 	∇θ = similar(θs)
 	Δ = deepcopy(Matrix(Δ))
-	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
+	order = t == 1 ? (length(a.idxs):-1:1) : (1:length(a.idxs))
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
-		i,j = idxs[k][1], idxs[k][2]
+		cosθ, sinθ = cos(a.θs[k]), sin(a.θs[k])
+		i,j = a.idxs[k][1], a.idxs[k][2]
 		_mulax!(o, cosθ, sinθ, i, j, o, -t) #compute the input
 		∇θ[k] = _∇mulax(Δ, cosθ, sinθ, i, j, o, t) #compute the gradient
 		_mulax!(Δ, cosθ, sinθ, i, j, Δ, -t) # computer the gradient of input
@@ -107,13 +130,13 @@ end
 	return(Δθ)
 end
 
-_mulxa(x, θs, idxs, t) = _mulxa!(deepcopy(x), x, θs, idxs, t)
+_mulxa(x, a::ButterflyParams, t) = _mulxa!(deepcopy(x), x, a, t)
 
-function _mulxa!(o, x, θs, idxs, t)
-	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
+function _mulxa!(o, x, a::ButterflyParams, t)
+	order = t == 1 ? (length(a.idxs):-1:1) : (1:length(a.idxs))
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
-		_mulxa!(o, o, cosθ, sinθ, idxs[k][1], idxs[k][2], t)
+		cosθ, sinθ = cos(a.θs[k]), sin(a.θs[k])
+		_mulxa!(o, o, cosθ, sinθ, a.idxs[k][1], a.idxs[k][2], t)
 	end
 	o
 end
@@ -126,13 +149,13 @@ end
 	end
 end
 
-function _∇mulxa(Δ, o, θs, idxs, t)
+function _∇mulxa(Δ, o, a::ButterflyParams, t)
 	∇θ = similar(θs)
 	Δ = deepcopy(Matrix(Δ))
-	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
+	order = t == 1 ? (1:length(a.idxs)) : (length(a.idxs):-1:1)
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
-		i,j = idxs[k][1], idxs[k][2]
+		cosθ, sinθ = cos(a.θs[k]), sin(a.θs[k])
+		i,j = a.idxs[k][1], a.idxs[k][2]
 		_mulxa!(o, o, cosθ, sinθ, i, j, -t) #compute the input
 		∇θ[k] = _∇mulxa(Δ, o, cosθ, sinθ, i, j, t) #compute the gradient
 		_mulxa!(Δ, Δ, cosθ, sinθ, i, j, -t) # computer the gradient of input
@@ -150,12 +173,12 @@ end
 end
 
 
-Zygote.@adjoint function _mulax(θs, idxs, x, t)
-	o = _mulax(θs, idxs, x, t)
-	return(o, Δ -> _∇mulax(Δ, θs, idxs, o, t))
+Zygote.@adjoint function _mulax(a::ButterflyParams, x, t)
+	o = _mulax(a, x, t)
+	return(o, Δ -> _∇mulax(Δ, a, o, t))
 end
 
-Zygote.@adjoint function _mulxa(x, θs, idxs, t)
-	o = _mulxa(x, θs, idxs, t)
-	return(o, Δ -> _∇mulxa(Δ, o, θs, idxs, t))
+Zygote.@adjoint function _mulxa(x, a::ButterflyParams, t)
+	o = _mulxa(x, a, t)
+	return(o, Δ -> _∇mulxa(Δ, o, a, t))
 end
