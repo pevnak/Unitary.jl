@@ -19,6 +19,16 @@ end
 
 #Basic functions
 Base.Matrix(a::lowup) = UnitLowerTriangular(a.m) * UpperTriangular(a.m)
+function LinearAlgebra.transpose(a::lowup)
+	out = lowup(a.m')
+	for i = 1:a.n
+		for j = i+1:a.n
+			out.m[j, i] /= out.m[i, i]
+			out.m[i, j] *= out.m[i, i]
+		end
+	end
+	out
+end
 
 mulax(m, x) = UnitLowerTriangular(m) * UpperTriangular(m) * x
 mulxa(m, x) = x * UnitLowerTriangular(m) * UpperTriangular(m)

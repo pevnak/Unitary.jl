@@ -3,6 +3,10 @@ using Unitary: lowup, mulax, ∇mulax, ∇mulxa, ∇mulax_inv, ∇mulxa_inv
 using Test, Flux
 using Zygote: gradient
 
+@testset "transposition" begin
+	a = lowup(5)
+	@test Matrix(transpose(a)) ≈ transpose(Matrix(a))
+end
 
 @testset "Test gradient functions" begin
 	cfdm = central_fdm(5, 1)
