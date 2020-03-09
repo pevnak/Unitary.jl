@@ -12,7 +12,7 @@ const TransposedMatVec = Union{Matrix, SubArray, Vector,Transpose{T,Matrix{T}} w
 include("givens/givens.jl")
 include("householder/householder.jl")
 include("layers/layers.jl")
-include("lowup/lowup.jl")
+include("lowup/LU.jl")
 
 export UnitaryHouseholder, UnitaryButterfly, SVDDense
 end # module
