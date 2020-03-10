@@ -14,6 +14,7 @@ Flux.trainable(a::lowup) = (a.m,)
 lowup(n::Int) = lowup(Float32, n, false)
 lowup(n::Int, invs::Bool) = lowup(Float32, n, invs)
 lowup(T::DataType, n::Int, invs::Bool) = lowup(rand(T, n, n), n, invs)
+lowup(T::DataType, n::Int) = lowup(T, n, false)
 lowup(a::AbstractMatrix) = lowup(Matrix(a), size(a, 1), false)
 function lowup(a::AbstractMatrix, invs::Bool)
 	@assert size(a, 1) == size(a, 2)
@@ -24,6 +25,13 @@ end
 Base.Matrix(a::lowup) = a.invs ?
 			UpperTriangular(a.m) * UnitLowerTriangular(a.m) :
 			UnitLowerTriangular(a.m) * UpperTriangular(a.m)
+function _logabsdet(a::lowup{T}) where {T<:Number}
+	out = zero(T)
+	for i = 1:a.n
+		out += log(abs(a.m[i, i] + eps(T)))
+	end
+	out
+end
 
 function LinearAlgebra.transpose(a::lowup)
 	out = lowup(a.m', a.invs)

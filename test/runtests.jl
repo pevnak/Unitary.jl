@@ -5,4 +5,5 @@
 #include("jacobian.jl")
 #include("svd.jl")
 include("lowup.jl")
+include("ludense.jl")
 #include("benchmarking.jl")
