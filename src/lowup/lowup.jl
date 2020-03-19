@@ -22,6 +22,8 @@ function lowup(a::AbstractMatrix, invs::Bool)
 end
 
 #Basic functions
+import Base: size
+size(a::lowup) = a.n
 Base.Matrix(a::lowup) = a.invs ?
 			UpperTriangular(a.m) * UnitLowerTriangular(a.m) :
 			UnitLowerTriangular(a.m) * UpperTriangular(a.m)
