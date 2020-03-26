@@ -82,112 +82,104 @@ function *(x::AbstractMatVec, a::lowup)
 	mulxalu(a.m, x, a.invs)
 end
 
-function ∇mulaxlu(Δ, m, invs, o)
+function ∇mulaxlu(Δ, m, invs, x)
 	∇m = zero(m)
-	Δ = deepcopy(Matrix(Δ))
-	a, b = size(o)
+	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
+	x = deepcopy(x)
 	if invs
-		o = inv(u)*o
-		@inbounds for i = 1:a
-			for j = 1:i
-				for k = 1:b
-					∇m[j, i] += o[i, k] * Δ[j, k]
-				end
-			end
-		end
-		Δ = u'*Δ
-		o = inv(l)*o
+		Δloc = u'*Δ
 		@inbounds for i = 1:a-1
 			for j = i+1:a
 				for k = 1:b
-					∇m[j, i] += o[i, k] * Δ[j, k]
+					∇m[j, i] += x[i, k] * Δloc[j, k]
 				end
 			end
 		end
-		Δ = l'*Δ
+		Δloc = l'*Δloc
+		x = l*x
+		@inbounds for i = 1:a
+			for j = 1:i
+				for k = 1:b
+					∇m[j, i] += x[i, k] * Δ[j, k]
+				end
+			end
+		end
 	else
-		o = inv(l)*o
-		@inbounds for i = 1:a-1
-			for j = i+1:a
-				for k = 1:b
-					∇m[j, i] += o[i, k] * Δ[j, k]
-				end
-			end
-		end
-		Δ = l'*Δ
-		o = inv(u)*o
+		Δloc = l'*Δ
 		@inbounds for i = 1:a
 			for j = 1:i
 				for k = 1:b
-					∇m[j, i] += o[i, k] * Δ[j, k]
+					∇m[j, i] += x[i, k] * Δloc[j, k]
 				end
 			end
 		end
-		Δ = u'*Δ
+		Δloc = u'*Δloc
+		x = u*x
+		@inbounds for i = 1:a-1
+			for j = i+1:a
+				for k = 1:b
+					∇m[j, i] += x[i, k] * Δ[j, k]
+				end
+			end
+		end
 	end
-	(∇m, Δ, nothing)
+	(∇m, Δloc, nothing)
 end
 
-function ∇mulxalu(Δ, m, invs, o)
+function ∇mulxalu(Δ, m, invs, x)
 	∇m = zero(m)
-	Δ = deepcopy(Matrix(Δ))
-	a, b = size(o)
+	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
+	x = deepcopy(x)
 	if invs
-		o = o*inv(l)
-		@inbounds for i = 1:b-1
-			for j = i+1:b
-				for k = 1:a
-					∇m[j, i] += o[k, j] * Δ[k, i]
-				end
-			end
-		end
-		Δ = Δ*l'
-		o = o*inv(u)
+		Δloc = Δ*l'
 		@inbounds for i = 1:b
 			for j = 1:i
 				for k = 1:a
-					∇m[j, i] += o[k, j] * Δ[k, i]
+					∇m[j, i] += x[k, j] * Δloc[k, i]
 				end
 			end
 		end
-		Δ = Δ*u'
+		Δloc = Δloc*u'
+		x = x*u
+		@inbounds for i = 1:b-1
+			for j = i+1:b
+				for k = 1:a
+					∇m[j, i] += x[k, j] * Δ[k, i]
+				end
+			end
+		end
 	else
-		o = o*inv(u)
-		@inbounds for i = 1:b
-			for j = 1:i
-				for k = 1:a
-					∇m[j, i] += o[k, j] * Δ[k, i]
-				end
-			end
-		end
-		Δ = Δ*u'
-		o = o*inv(l)
+		Δloc = Δ*u'
 		@inbounds for i = 1:b-1
 			for j = i+1:b
 				for k = 1:a
-					∇m[j, i] += o[k, j] * Δ[k, i]
+					∇m[j, i] += x[k, j] * Δloc[k, i]
 				end
 			end
 		end
-		Δ = Δ*l'
+		Δloc = Δloc*l'
+		x = x*l
+		@inbounds for i = 1:b
+			for j = 1:i
+				for k = 1:a
+					∇m[j, i] += x[k, j] * Δ[k, i]
+				end
+			end
+		end
 	end
-	(∇m, Δ, nothing)
+	(∇m, Δloc, nothing)
 end
 
 @adjoint function mulaxlu(m, x, invs)
-	o = 	invs ?
-		UpperTriangular(m) * UnitLowerTriangular(m) * x :
-		UnitLowerTriangular(m) * UpperTriangular(m) * x
-	return o, Δ -> ∇mulaxlu(Δ, m, invs, o)
+	o = mulaxlu(m, x, invs)
+	return o, Δ -> ∇mulaxlu(Δ, m, invs, x)
 end
 
 @adjoint function mulxalu(m, x, invs)
-	o = 	invs ?
-		x * UpperTriangular(m) * UnitLowerTriangular(m) :
-		x * UnitLowerTriangular(m) * UpperTriangular(m)
-	return o, Δ -> ∇mulxalu(Δ, m, invs, o)
+	o = mulxalu(m, x, invs)
+	return o, Δ -> ∇mulxalu(Δ, m, invs, x)
 end

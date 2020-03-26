@@ -18,29 +18,25 @@ end
 	x = rand(5, 10)
 	Δ = ones(size(m*x))
 	invs = false
-	ax = lowup(m, invs)*x
 	xt = rand(10, 5)
 	Δt = ones(size(xt*m))
-	xa = xt*lowup(m, invs)
 	@test grad(cfdm, m -> sum(lowup(m, invs) * x), m)[1] ≈
-	∇mulaxlu(Δ, m, invs, ax)[1]
+	∇mulaxlu(Δ, m, invs, x)[1]
 	@test grad(cfdm, x -> sum(lowup(m, invs) * x), x)[1] ≈
-	∇mulaxlu(Δ, m, invs, ax)[2]
+	∇mulaxlu(Δ, m, invs, x)[2]
 	@test grad(cfdm, m -> sum(xt*lowup(m, invs)), m)[1] ≈
-	∇mulxalu(Δt, m, invs, xa)[1]
+	∇mulxalu(Δt, m, invs, xt)[1]
 	@test grad(cfdm, x -> sum(xt*lowup(m, invs)), xt)[1] ≈
-	∇mulxalu(Δt, m, invs, xa)[2]
+	∇mulxalu(Δt, m, invs, xt)[2]
 	invs = true
-	ax = lowup(m, invs)*x
-	xa = xt*lowup(m, invs)
 	@test grad(cfdm, m -> sum(lowup(m, invs) * x), m)[1] ≈
-	∇mulaxlu(Δ, m, invs, ax)[1]
+	∇mulaxlu(Δ, m, invs, x)[1]
 	@test grad(cfdm, x -> sum(lowup(m, invs) * x), x)[1] ≈
-	∇mulaxlu(Δ, m, invs, ax)[2]
+	∇mulaxlu(Δ, m, invs, x)[2]
 	@test grad(cfdm, m -> sum(xt*lowup(m, invs)), m)[1] ≈
-	∇mulxalu(Δt, m, invs, xa)[1]
+	∇mulxalu(Δt, m, invs, xt)[1]
 	@test grad(cfdm, x -> sum(xt*lowup(m, invs)), xt)[1] ≈
-	∇mulxalu(Δt, m, invs, xa)[2]
+	∇mulxalu(Δt, m, invs, xt)[2]
 end
 
 @testset "Testing integration with Flux" begin
