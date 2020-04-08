@@ -83,9 +83,9 @@ end
 @testset "Test matrix gradient" begin
 	cfdm = central_fdm(5, 1)
 	m = rand(5, 5)
-	Δ = ones(size(m))
-	@test grad(cfdm, m -> sum(Matrix(lowup(m))), m)[1] ≈ ∇Matrixlu(Δ, m)[1]
-	@test grad(cfdm, m -> sum(Matrix(inverted_lowup(m))), m)[1] ≈ ∇Matrixilu(Δ, m)[1]
+	Δ = rand(5, 5)
+	@test grad(cfdm, m -> sum(Δ.*Matrix(lowup(m))), m)[1] ≈ ∇Matrixlu(Δ, m)[1]
+	@test grad(cfdm, m -> sum(Δ.*Matrix(inverted_lowup(m))), m)[1] ≈ ∇Matrixilu(Δ, m)[1]
 end
 
 @testset "Testing matrix integration with Flux" begin
