@@ -25,5 +25,5 @@ end
 
 import Base: *
 function *(a::Union{lowup, inverted_lowup}, b::Union{lowup, inverted_lowup})
-	Matrix(a.m) * Matrix(b.m)
+	Matrix(a) * Matrix(b)
 end
