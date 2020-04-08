@@ -25,13 +25,15 @@ end
 	m = rand(5, 5)
 	cfdm = central_fdm(5, 1)
 	a = lowup(m)
-	b = inverted_lowup(m)
 	psa = Flux.params(a)
+	x = ones(5, 1)
+	d = rand(5, 5)
+	@test gradient(() -> sum(d.*Matrix(Unitary.trans(a))), psa)[a.m] ≈
+	grad(cfdm, m -> sum(d.*Matrix(Unitary.trans(lowup(m)))), m)[1]
+	b = inverted_lowup(m)
 	psb = Flux.params(b)
-	@test gradient(() -> sum(Matrix(transpose(a))), psa)[a.m] ≈
-	grad(cfdm, m -> sum(Matrix(transpose(lowup(m)))), m)[1]
-	@test gradient(() -> sum(Matrix(transpose(b))), psb)[b.m] ≈
-	grad(cfdm, m -> sum(Matrix(transpose(inverted_lowup(m)))), m)[1]
+	@test gradient(() -> sum(d.*Matrix(Unitary.trans(b))), psb)[b.m] ≈
+	grad(cfdm, m -> sum(d.*Matrix(Unitary.trans(inverted_lowup(m)))), m)[1]
 end
 
 @testset "Test multiplacation gradient functions" begin

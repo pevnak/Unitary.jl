@@ -30,6 +30,16 @@ function LinearAlgebra.transpose(a::inverted_lowup)
 	inverted_lowup(m, size(m, 1))
 end
 
+function trans(a::lowup)
+	m = transposelu(a.m)
+	lowup(m, size(m, 1))
+end
+
+function trans(a::inverted_lowup)
+	m = transposeilu(a.m)
+	inverted_lowup(m, size(m, 1))
+end
+
 function ∇transposelu(Δ, m)
 	Δloc = deepcopy(Matrix(transpose(Δ)))
 	for i = 1:size(m, 1)
