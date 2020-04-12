@@ -1,6 +1,6 @@
-Base.Matrix(a::lowup) = Matrixlu(a.m)
+Matrix(a::lowup) = Matrixlu(a.m)
 Matrixlu(m) = UnitLowerTriangular(m) * UpperTriangular(m)
-Base.Matrix(a::inverted_lowup) = Matrixilu(a.m)
+Matrix(a::inverted_lowup) = Matrixilu(a.m)
 Matrixilu(m) = UpperTriangular(m) * UnitLowerTriangular(m)
 
 function ∇Matrixlu(Δ, m)
