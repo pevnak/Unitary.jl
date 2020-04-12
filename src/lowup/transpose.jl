@@ -20,14 +20,12 @@ function transposeilu(m)
 	m
 end
 
-function LinearAlgebra.transpose(a::lowup)
-	m = transposelu(a.m)
-	lowup(m, size(m, 1))
+function transpose(a::Union{lowup, inverted_lowup})
+	trans(a)
 end
 
-function LinearAlgebra.transpose(a::inverted_lowup)
-	m = transposeilu(a.m)
-	inverted_lowup(m, size(m, 1))
+@adjoint function transpose(a::Union{lowup, inverted_lowup})
+	Zygote.pullback(trans, a)
 end
 
 function trans(a::lowup)
