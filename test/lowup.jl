@@ -41,9 +41,9 @@ end
 	@test gradient(() -> sum(d.*Matrix(Unitary.trans(b))), psb)[b.m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(Unitary.trans(inverted_lowup(m)))), m)[1]
 	#transpose
-	@test gradient(() -> sum(d.*Matrix(transpose(a))), psa)[a.m] ≈
+	@test gradient(a -> sum(d.*Matrix(transpose(a))), a)[1][:m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(lowup(m)))), m)[1]
-	@test gradient(() -> sum(d.*Matrix(transpose(b))), psb)[b.m] ≈
+	@test gradient(b -> sum(d.*Matrix(transpose(b))), b)[1][:m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(inverted_lowup(m)))), m)[1]
 end
 
