@@ -1,5 +1,5 @@
-mulaxlu(m, x) = UnitLowerTriangular(m) * UpperTriangular(m) * x
-mulaxilu(m, x) = UpperTriangular(m) * UnitLowerTriangular(m) * x
+mulaxlu(m, x) = UnitLowerTriangular(m) * (UpperTriangular(m) * x)
+mulaxilu(m, x) = UpperTriangular(m) * (UnitLowerTriangular(m) * x)
 
 mulxalu(m, x) = x * UnitLowerTriangular(m) * UpperTriangular(m)
 mulxailu(m, x) = x * UpperTriangular(m) * UnitLowerTriangular(m)
