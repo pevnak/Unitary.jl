@@ -1,7 +1,8 @@
 using Zygote:@adjoint
+using LinearAlgebra
 
 struct UnitaryHouseholder{T}
-	Y::YUH{T}
+	Y::Matrix{T}
 	transposed::Bool
 	n::Int
 end
@@ -13,14 +14,13 @@ Flux.trainable(m::UnitaryHouseholder) = (m.Y,)
 UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float64, n)
 
 function UnitaryHouseholder(T::DataType, n::Int)
-	Y = YUH(rand(T, n, n))
+	Y = Matrix(LowerTriangular(rand(T, n, n)))
 	UnitaryHouseholder(Y, false, n)
 end
 
 function UnitaryHouseholder(Y::AbstractMatrix)
 	@assert size(Y, 1) == size(Y, 2)
-	Y = YUH(Y)
-	UnitaryHouseholder(Y, false, size(Y, 1))
+	UnitaryHouseholder(Matrix(LowerTriangular(Y)), false, size(Y, 1))
 end
 
 #Basic functions
@@ -30,41 +30,82 @@ Base.size(a::UnitaryHouseholder, i::Int) = a.n
 Base.eltype(a::UnitaryHouseholder{T}) where {T} = T
 LinearAlgebra.transpose(a::UnitaryHouseholder) = UnitaryHouseholder(a.Y, !a.transposed, a.n)
 Base.inv(a::UnitaryHouseholder) = LinearAlgebra.transpose(a)
-Base.show(io::IO, a::UnitaryHouseholder) = print(io, "$(a.n)x$(a.n) UnitaryHouseholder")
+Base.show(io::IO, ::MIME"text/plain", a::UnitaryHouseholder) = print(io, "$(a.n)x$(a.n) UnitaryHouseholder")
+
+@inline HH_t(Y::AbstractMatrix, i::Int) = 2 / sum((@view Y[:, i]).^2)
+@inline HH_t_LT(Y::AbstractMatrix, i::Int) = 2 / sum((@view Y[i:end, i]).^2)
+@inline HH_t_UT(Y::AbstractMatrix, i::Int) = 2 / sum((@view Y[1:i, i]).^2)
+@inline HH_t(y) = 2 / dot(y, y)
+@inline HH_t(y, n) = 2 / dot(y[n:end], y[n:end])
+
+function mulax(Y, x, transposed, n)
+	out = deepcopy(x)
+	mulax!(Y, out, transposed, n)
+	out
+end
+
+function mulxa(Y, x, transposed, n)
+	out = deepcopy(x)
+	mulxa!(Y, out, transposed, n)
+	out
+end
+
+function mulax!(y, x, n)
+	# multiply by single reflection defined by y
+	# n - first nonzero component of y
+	t = HH_t(y, n)
+	@inbounds for j = 1:size(x, 2)
+		tmp = t * dot(y[n:end], x[n:end, j])
+		for k = n:size(x, 1)
+			x[k, j] -= tmp * y[k]
+		end
+	end
+end
+
+function mulax!(Y, x, transposed, n)
+	ran = transposed ? (1:n) : (n:-1:1)
+	@inbounds for i = ran
+		mulax!(Y[:, i], x, i)
+	end
+end
+
+function mulxa!(y, x, n)
+	t = HH_t(y[1:end], n)
+	@inbounds for j = 1:size(x, 1)
+		tmp = t * dot(y[n:end], x[j, n:end])
+		for k = n:size(x, 2)
+			x[j, k] -= tmp * y[k]
+		end
+	end
+end
+
+function mulxa!(Y, x, transposed, n)
+	ran = transposed ? (n:-1:1) : (1:n)
+	@inbounds for i = ran
+		mulxa!(Y[:, i], x, i)
+	end
+end
 
 function Base.Matrix(a::UnitaryHouseholder)
-	a.transposed ? a.Y.U' : a.Y.U
+	out = Matrix{eltype(a)}(I, a.n, a.n)
+	mulax!(a.Y, out, a.transposed, a.n)
+	out
 end
 
-function mulax(Y, x, transposed)
-	transposed ? Y.U'*x : Y.U*x
-end
-
-function mulxa(x, Y, transposed)
-	transposed ? x*Y.U' : x*Y.U
-end
-
-function *(a::UnitaryHouseholder, x::AbstractMatVec)
+import Base: *
+function *(a::UnitaryHouseholder, x) #AbstractMatVec)
 	@assert size(x, 1) == a.n
-	mulax(a.Y, x, a.transposed)
+	mulax(a.Y, x, a.transposed, a.n)
 end
 
-function *(x::AbstractMatVec, a::UnitaryHouseholder)
+function *(x::AbstractMatrix, a::UnitaryHouseholder) #AbstractMatVec
 	@assert size(x, 2) == a.n
-	mulxa(x, a.Y, a.transposed)
+	mulxa(a.Y, x, a.transposed, a.n)
 end
 
 function pdiff_t(y, b::Int)
 	- HH_t(y)^2 * y[b]
 end
-
-# function pdiff_reflect(y, b::Int)
-# 	out = - pdiff_t(y, b) * y * y'
-# 	t = HH_t(y)
-# 	@inbounds out[:, b] -= t*y
-# 	@inbounds out[b, :] -= t*y
-# 	out
-# end
 
 function pdiff_reflect(y, b::Int)
 	t = HH_t(y)
@@ -77,103 +118,42 @@ function pdiff_reflect(y, b::Int)
 	out
 end
 
-function pdiff(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, a::Int, b::Int)
-# a - vector index
-# b - vector element index
-	n = size(Y, 1)
-	@assert 1 <= a <= b <= n
-	out = Array{eltype(Y), 2}(undef, n, n)
-	@inbounds leading = (a==1 ? I : I - Y[:, 1:(a-1)] * T[1:(a-1), 1:(a-1)] * Y[:, 1:(a-1)]')
-	@inbounds tailing = (n==a ? I : I - Y[:, (a+1):n] * T[(a+1):n, (a+1):n] * Y[:, (a+1):n]')
-	if transposed
-		leading, tailing = tailing, leading
+function grad_mulax(Δ, Y, transposed, o)
+	∇Y = zero(Y)
+	Δ = deepcopy(Matrix(Δ))
+	n = size(Y, 2)
+	ran = transposed ? (n:-1:1) : (1:n)
+	@inbounds for k = ran
+		mulax!(Y[:, k], o, k)
+		for i = k:n
+			∇Y[i, k] = sum(Δ.*(pdiff_reflect(Y[:, k], i)*o))
+		end
+		mulax!(Y[:, k], Δ, k)
 	end
-	@inbounds leading * pdiff_reflect(Y[:, a], b) * tailing
+	(∇Y, Δ, nothing, nothing)
 end
 
-function diff_U(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, δY)
-# Y and δY must be lower triangular
-	b, a = size(Y)
-	δU = zeros(eltype(Y), b, b)
-	@inbounds for i = 1:(a==b ? a-1 : a)
-		#pdiff with regards to the last element is constant zero matrix
-		leading = (i==1 ? I : I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]')
-		tailing = (a==i ? I : I - Y[:, (i+1):a] * T[(i+1):a, (i+1):a] * Y[:, (i+1):a]')
-		if transposed
-			leading, tailing = tailing, leading
+function grad_mulxa(Δ, Y, transposed, o)
+	∇Y = zero(Y)
+	Δ = deepcopy(Matrix(Δ))
+	n = size(Y, 2)
+	ran = transposed ? (1:n) : (n:-1:1)
+	@inbounds for k = ran
+		mulxa!(Y[:, k], o, k)
+		for i = k:n
+			∇Y[i, k] = sum(Δ.*(o*pdiff_reflect(Y[:, k], i)))
 		end
-		for j = i:b
-			δU[:, i:b] += (leading * pdiff_reflect(Y[:, i], j) * tailing)[:, i:b] * δY[j, i]
-		end
+		mulxa!(Y[:, k], Δ, k)
 	end
-	δU
+	(∇Y, Δ, nothing, nothing)
 end
 
-
-function grad_mul_Y(Y::AbstractMatrix, T::AbstractMatrix, transposed::Bool, x::AbstractMatVec, Δ)
-# Y must be lower triangular
-# T must be lower triangular if transposed is true
-	b, a = size(Y)
-	@assert a==b
-	n = a
-	∇mul = zeros(eltype(Y), n, n)
-	Tail = @views I - Y[:, 2:n] * T[2:n, 2:n] * Y[:, 2:n]'
-	tmp = Array{eltype(Y), 2}(undef, n, n)
-	if transposed
-		@inbounds for j = 1:n
-			∇mul[j, 1] = sum(Δ.*(Tail * pdiff_reflect(Y[:, 1], j) * x))
-		end
-		@inbounds for i = 2:(n-1)
-			#pdiff with regards to the last element is constant zero matrix
-			Lead = @views I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]'
-			Tail = @views I - Y[(i+1):n, (i+1):n] * T[(i+1):n, (i+1):n] * Y[(i+1):n, (i+1):n]'
-			for j = i:n
-				P = @views pdiff_reflect(Y[i:n, i], j-i+1)
-				tmp[i, :] = @views P[1, 1] * Lead[i, :]' + P[1, 2:end]' * Lead[(i+1):n, :]
-				tmp[(i+1):n, :] = @views Tail * (P[2:end, 1] * Lead[i, :]' + P[2:end, 2:end] * Lead[(i+1):n, :])
-				∇mul[j, i] = @views sum(Δ[i:end, :] .* (tmp[i:end, :] * x))
-			end
-		end
-	else
-		@inbounds for j = 1:n
-			∇mul[j, 1] = sum(Δ.*(pdiff_reflect(Y[:, 1], j) * Tail * x))
-		end
-		@inbounds for i = 2:(n-1)
-			#pdiff with regards to the last element is constant zero matrix
-			Lead = @views I - Y[:, 1:(i-1)] * T[1:(i-1), 1:(i-1)] * Y[:, 1:(i-1)]'
-			Tail = @views I - Y[(i+1):n, (i+1):n] * T[(i+1):n, (i+1):n] * Y[(i+1):n, (i+1):n]'
-			for j = i:n
-				P = @views pdiff_reflect(Y[i:n, i], j-i+1)
-				tmp[:, i] = @views Lead[:, i] * P[1, 1] + Lead[:, (i+1):end] * P[2:end, 1]
-				tmp[:, (i+1):n] = @views (Lead[:, i] * P[1, 2:end]' + Lead[:, (i+1):end] * P[2:end, 2:end]) * Tail
-				∇mul[j, i] = @views sum(Δ .*( tmp[:, i:end] * x[i:end, :]))
-			end
-		end
-	end
-	∇mul
+@adjoint function mulax(Y::AbstractMatrix, x::AbstractMatVec, transposed::Bool, n::Int)
+	o = mulax(Y, x, transposed, n)
+	return o, Δ -> grad_mulax(Δ, Y, transposed, o)
 end
 
-
-function grad_mul_x(U::AbstractMatrix, x::AbstractMatVec, Δ)
-	b = size(x, 1)
-	a = ndims(x)==1 ? 1 : size(x, 2)
-	∇mul = zeros(eltype(U), b, a)
-	@inbounds for i = 1:a
-		for j = 1:b
-			∇mul[j, i] = @views sum( Δ[:, i] .* U[:, j])
-		end
-	end
-	∇mul
+@adjoint function mulxa(Y::AbstractMatrix, x::AbstractMatVec, transposed::Bool, n::Int)
+	o = mulxa(Y, x, transposed, n)
+	return o, Δ -> grad_mulxa(Δ, Y, transposed, o)
 end
-
-
-
-@adjoint function mulax(b::YUH, x::AbstractMatVec, transposed::Bool)
-	T = transposed ? T_matrix(b.Y)' : T_matrix(b.Y)
-	return b.U*x, Δ -> (grad_mul_Y(b.Y, T, transposed, x, Δ), grad_mul_x(b.U, x, Δ), nothing)
-end
-
-
-#@adjoint function UnitaryHouseholder(Y, T, transposed, n)
-#	return UnitaryHouseholder(Y, T, transposed, n), Δ -> (Δ.Y, Δ.T, Δ.transposed, Δ.n)
-#end
