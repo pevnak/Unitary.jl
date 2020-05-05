@@ -27,7 +27,6 @@ function ∇mulaxlu(Δ, m, x)
 	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
-	x = deepcopy(x)
 	Δloc = l'*Δ
 	@inbounds for i = 1:a
 		for j = 1:i
@@ -53,7 +52,6 @@ function ∇mulaxilu(Δ, m, x)
 	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
-	x = deepcopy(x)
 	Δloc = u'*Δ
 	@inbounds for i = 1:a-1
 		for j = i+1:a
@@ -79,7 +77,6 @@ function ∇mulxalu(Δ, m, x)
 	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
-	x = deepcopy(x)
 	Δloc = Δ*u'
 	@inbounds for i = 1:b-1
 		for j = i+1:b
@@ -105,7 +102,6 @@ function ∇mulxailu(Δ, m, x)
 	a, b = size(x)
 	l = UnitLowerTriangular(m)
 	u = UpperTriangular(m)
-	x = deepcopy(x)
 	Δloc = Δ*l'
 	@inbounds for i = 1:b
 		for j = 1:i
