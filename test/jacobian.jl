@@ -24,9 +24,9 @@ end
 	end
 	x = randn(2,10)
 	fdm = central_fdm(5, 1)
-	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 1e-4)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 5e-4)
 	m = Chain(SVDDense(2,selu), SVDDense(2,selu), SVDDense(2,identity))
-	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 1e-4)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 5e-4)
 end
 
 @testset "Testing calculation of the Jacobian LU" begin
@@ -51,7 +51,7 @@ end
 	end
 	x = randn(2,10)
 	fdm = central_fdm(5, 1)
-	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 1e-4)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 5e-4)
 	m = Chain(LUDense(2,selu), LUDense(2,selu), LUDense(2,identity))
-	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 1e-4)
+	@test isapprox(gradient(x -> sum(lkl(m, x)), x)[1], grad(fdm, x -> sum(lkl(m, x)), x)[1], atol = 5e-4)
 end

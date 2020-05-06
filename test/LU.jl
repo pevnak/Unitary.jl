@@ -21,16 +21,16 @@ end
 	@test grad(cfdm, m -> sum(Δ .* transposeilu(m)), m)[1] ≈ ∇transposeilu(Δ, m)[1]
 end
 
-@testset "Test transposition integration with flux" begin
+@testset "Test transposition integration with Flux" begin
 	m = rand(5, 5)
 	cfdm = central_fdm(5, 1)
 	d = rand(5, 5)
-	#no Flux.params
+	#construct lowdup in gradient
 	@test gradient(m -> sum(d.*Matrix(transpose(lowup(m)))), m)[1] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(lowup(m)))), m)[1]
 	@test gradient(m -> sum(d.*Matrix(transpose(inverted_lowup(m)))), m)[1] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(inverted_lowup(m)))), m)[1]
-	#with Flux.params
+	#calculate grad of preconstructed lowdup
 	a = lowup(m)
 	psa = Flux.params(a)
 	b = inverted_lowup(m)
@@ -40,10 +40,15 @@ end
 	grad(cfdm, m -> sum(d.*Matrix(Unitary.trans(lowup(m)))), m)[1]
 	@test gradient(() -> sum(d.*Matrix(Unitary.trans(b))), psb)[b.m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(Unitary.trans(inverted_lowup(m)))), m)[1]
-	#transpose
+	#transpose without Flux.params
 	@test gradient(a -> sum(d.*Matrix(transpose(a))), a)[1][:m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(lowup(m)))), m)[1]
 	@test gradient(b -> sum(d.*Matrix(transpose(b))), b)[1][:m] ≈
+	grad(cfdm, m -> sum(d.*Matrix(transpose(inverted_lowup(m)))), m)[1]
+	#transpose with Flux.params, is broken upstream
+	@test_broken gradient(() -> sum(d.*Matrix(transpose(a))), psa)[a.m] ≈
+	grad(cfdm, m -> sum(d.*Matrix(transpose(lowup(m)))), m)[1]
+	@test_broken gradient(() -> sum(d.*Matrix(transpose(b))), psb)[b.m] ≈
 	grad(cfdm, m -> sum(d.*Matrix(transpose(inverted_lowup(m)))), m)[1]
 end
 

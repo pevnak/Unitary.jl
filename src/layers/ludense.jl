@@ -12,19 +12,26 @@ Flux.@functor LUDense
 	LUDense(n, σ)
 
 	Dense layer with square weight matrix of dimension `n` parametrized in 
-	LU decomposition.
+	LU or LDU decomposition.
 	
-	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
+	`σ` --- an invertible and transfer function, curently implemented `selu` and `identity`
 """
-function LUDense(n::Int, σ)
+function LUDense(n::Int, σ, decom = :ldu)
 	n == 1 && return(ScaleShift(1, σ))
-	return(_ludense(n, σ))
+	if decom == :lu
+		return(_ludense(n, σ))
+	elseif decom == :ldu
+		return(_ldudense(n, σ))
+	else
+		@error "unknown type of decompostion $decom"
+	end
 end
 
 
 using LinearAlgebra
 
 _ludense(n::Int, σ) = LUDense(lowup(Float32, n), 0.01f0.*randn(Float32,n), σ)
+_ldudense(n::Int, σ) = LUDense(lowdup(Float32, n), 0.01f0.*randn(Float32,n), σ)
 
 (a::LUDense)(x::AbstractMatVec) = a.σ.((a.m * x) .+ a.b)
 
