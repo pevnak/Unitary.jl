@@ -15,6 +15,6 @@ include("layers/layers.jl")
 include("LU/LU.jl")
 include("LDU/LDU.jl")
 
-export UnitaryHouseholder, Butterfly, SVDDense
-export lowup, lowdup, LUDense
+export UnitaryHouseholder, Butterfly, SVDTransform
+export lowup, lowdup, LUTransform
 end # module

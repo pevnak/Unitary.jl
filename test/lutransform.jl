@@ -1,10 +1,10 @@
 using Unitary, Test, LinearAlgebra, Flux
-using Unitary: LUDense, ScaleShift
+using Unitary: LUTransform, ScaleShift
 using FiniteDifferences
 
-@testset "Can I invert LUDense and its chain" begin
+@testset "Can I invert LUTransform and its chain" begin
 	for d in [1, 2, 3, 4]
-		for m in [LUDense(d, identity), LUDense(d, selu), Chain(LUDense(d, identity), LUDense(d, identity)), Chain(LUDense(d, selu), LUDense(d, selu))]
+		for m in [LUTransform(d, identity), LUTransform(d, selu), Chain(LUTransform(d, identity), LUTransform(d, identity)), Chain(LUTransform(d, selu), LUTransform(d, selu))]
 			mi = inv(m)
 			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
 				@test isapprox(mi(m(x)),  x, atol = 1e-3)
@@ -25,7 +25,7 @@ end
 @testset "testing the determinant" begin
 	fdm = central_fdm(5, 1);
 	x = randn(2)
-	for m in [LUDense(2, identity), LUDense(2, selu), Chain(LUDense(2, identity), LUDense(2, selu))]
+	for m in [LUTransform(2, identity), LUTransform(2, selu), Chain(LUTransform(2, identity), LUTransform(2, selu))]
 		@test isapprox(logabsdet(jacobian(fdm, m, x)[1])[1], m((x,0))[2][1], atol = 1e-3)
 	end
 
@@ -33,7 +33,7 @@ end
 		@test isapprox(logabsdet(jacobian(fdm, m, x)[1])[1], m((x,0))[2][1], atol = 1e-3)
 	end
 
-	for m in [LUDense(2, identity), LUDense(2, selu), Chain(LUDense(2, identity), LUDense(2, selu))]
+	for m in [LUTransform(2, identity), LUTransform(2, selu), Chain(LUTransform(2, identity), LUTransform(2, selu))]
 		@test m((x,0))[1] ≈ m(x)
 	end
 

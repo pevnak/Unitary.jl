@@ -1,10 +1,10 @@
 using Unitary, Test, LinearAlgebra, Flux
-using Unitary: SVDDense, ScaleShift
+using Unitary: SVDTransform, ScaleShift
 using FiniteDifferences
 
-@testset "Can I invert SVDDense and its chain" begin
+@testset "Can I invert SVDTransform and its chain" begin
 	for d in [1, 2, 3, 4]
-		for m in [SVDDense(d, identity), SVDDense(d, selu), Chain(SVDDense(d, identity), SVDDense(d, identity)), Chain(SVDDense(d, selu), SVDDense(d, selu))]
+		for m in [SVDTransform(d, identity), SVDTransform(d, selu), Chain(SVDTransform(d, identity), SVDTransform(d, identity)), Chain(SVDTransform(d, selu), SVDTransform(d, selu))]
 			mi = inv(m)
 			for x in [rand(d), rand(d,10), transpose(rand(10, d))]
 				@test isapprox(mi(m(x)),  x, atol = 1e-3)
@@ -25,7 +25,7 @@ end
 @testset "testing the determinant" begin
 	fdm = central_fdm(5, 1);
 	x = randn(2)
-	for m in [SVDDense(2, identity), SVDDense(2, selu), Chain(SVDDense(2, identity), SVDDense(2, selu))]
+	for m in [SVDTransform(2, identity), SVDTransform(2, selu), Chain(SVDTransform(2, identity), SVDTransform(2, selu))]
 		@test isapprox(logabsdet(jacobian(fdm, m, x)[1])[1], m((x,0))[2][1], atol = 1e-3)
 	end
 
@@ -33,7 +33,7 @@ end
 		@test isapprox(logabsdet(jacobian(fdm, m, x)[1])[1], m((x,0))[2][1], atol = 1e-3)
 	end
 
-	for m in [SVDDense(2, identity), SVDDense(2, selu), Chain(SVDDense(2, identity), SVDDense(2, selu))]
+	for m in [SVDTransform(2, identity), SVDTransform(2, selu), Chain(SVDTransform(2, identity), SVDTransform(2, selu))]
 		@test m((x,0))[1] ≈ m(x)
 	end
 

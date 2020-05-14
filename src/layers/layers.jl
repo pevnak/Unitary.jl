@@ -1,5 +1,5 @@
 include("diagonalrectangular.jl")
 include("scaleshift.jl")
 include("inversions.jl")
-include("svddense.jl")
-include("ludense.jl")
+include("svdtransform.jl")
+include("lutransform.jl")
