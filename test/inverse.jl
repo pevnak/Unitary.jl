@@ -1,28 +1,16 @@
-using Unitary, Test, LinearAlgebra, Flux
-using Unitary: UnitaryMatrix
-
-@testset "Is transposed unitary matrix its inverse?" begin
-	a = UnitaryMatrix([1])
-	at = transpose(a);
-	for x in [rand(2), rand(2,10)]
-		@test at*(a*x) ≈ x
-		@test a*(at*x) ≈ x
-	end
-
-	at = inv(a);
-	for x in [rand(2), rand(2,10)]
-		@test at*(a*x) ≈ x
-		@test a*(at*x) ≈ x
-	end
-
-	@test inv(inv(a)) == a
-end
+using Unitary, Test
 
 @testset "Inversions of activation function" begin
-	for f in [identity, selu, tanh, NNlib.σ, NNlib.leakyrelu]
+	for f in [identity, selu, NNlib.σ, NNlib.leakyrelu]
 		x = -10:1:10
 		@test inv(f).(f.(x)) ≈ x
 		@test inv(f).(f.(-x)) ≈ -x
 		@test inv(inv(f)) == f
 	end
+	#tanh is unstable
+	x = -4:1:4
+	@test inv(tanh).(tanh.(x)) ≈ x
+	@test inv(tanh).(tanh.(-x)) ≈ -x
+	@test inv(inv(tanh)) == tanh
+
 end
