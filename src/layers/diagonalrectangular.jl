@@ -90,11 +90,9 @@ end
 	return diagmul(a, d, n, m) , Δ -> (diagmul(Δ, d, m, n),  ∇diagmul(Δ, a, d, n, m), nothing, nothing)
 end
 
-_logabsdet(a::DiagonalRectangular{T}) where {T<:Number} = sum(log.(abs.(a.d) .+ eps(T)))
-
 Base.transpose(a::DiagonalRectangular) = DiagonalRectangular(a.d, a.m, a.n)
 Base.inv(a::DiagonalRectangular) = DiagonalRectangular(1 ./ a.d, a.m, a.n)
-LinearAlgebra.logabsdet(a::DiagonalRectangular) = _logabsdet(a.d)
+LinearAlgebra.logabsdet(a::DiagonalRectangular{T}) where {T<:Number} = sum(log.(abs.(a.d) .+ eps(T)))
 Base.size(a::DiagonalRectangular) = (a.n, a.m)
 function Base.size(a::DiagonalRectangular, i::Int)
 	if i == 1 

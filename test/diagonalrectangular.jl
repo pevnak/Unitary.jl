@@ -74,14 +74,14 @@ end
 		am = Matrix(a)
 
 		@test Flux.gradient(x -> sum(sin.(x * am)), x)[1] ≈ Flux.gradient(x -> sum(sin.(x * a)), x)[1]
-		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(x, d, a.n, a.m))), a.d),  Flux.gradient(a -> sum(sin.(x * a)), a)[1][1], atol = 1e-6)
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(x, d, a.n, a.m))), a.d)[1],  Flux.gradient(a -> sum(sin.(x * a)), a)[1][1], atol = 1e-6)
 
 		@test Flux.gradient(x -> sum(sin.(am * x)), x)[1] ≈ Flux.gradient(x -> sum(sin.(a * x)), x)[1]
-		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
 
 		ps = params(a)
 		@test length(ps) == 1
-		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),
+		@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],
 			gradient(() -> sum(sin.(a * x)),ps)[a.d], atol = 1e-6)
 	end
 
@@ -91,7 +91,7 @@ end
 	am = Matrix(a)
 
 	@test Flux.gradient(x -> sum(sin.(am * x)), x)[1] ≈ Flux.gradient(x -> sum(sin.(a * x)), x)[1]
-	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
+	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],  Flux.gradient(a -> sum(sin.(a * x)), a)[1][1], atol = 1e-6)
 end
 
 @testset  "DiagonalRectangular: integration with flux" begin
@@ -100,7 +100,7 @@ end
 	x = randn(m, n)
 	ps = params(a)
 	@test length(ps) == 1
-	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d),
+	@test isapprox(grad(fdm, d -> sum(sin.(diagmul(d, a.n, a.m, x))), a.d)[1],
 		gradient(() -> sum(sin.(a * x)),ps)[a.d], atol = 1e-6)
 end
 
@@ -109,6 +109,6 @@ end
 	ps = params(d)
 	gradient(() -> logabsdet(d), ps)
 
-	f, back = Zygote.forward(() -> logabsdet(d), ps)
+	f, back = Zygote.pullback(() -> logabsdet(d), ps)
 end
 
