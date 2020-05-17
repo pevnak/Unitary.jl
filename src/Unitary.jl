@@ -17,4 +17,5 @@ include("LDU/include.jl")
 
 export UnitaryHouseholder, UnitaryGivens, SVDTransform
 export lowup, lowdup, LUTransform
+export Svd, Transform
 end # module

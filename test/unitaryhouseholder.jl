@@ -27,10 +27,10 @@ end
 
 @testset "Multiplication" begin
 	a = UnitaryHouseholder(5)
-	x = randn(5, 8)
+	x = randn(Float32, 5, 8)
 	@test a * x ≈ HH_mul(a.Y) * x
 	@test transpose(a) * x ≈ HH_mul(a.Y)' * x
-	xt = rand(8, 5)
+	xt = rand(Float32, 8, 5)
 	@test xt * a ≈ xt * HH_mul(a.Y)
 	@test xt * transpose(a) ≈ xt * HH_mul(a.Y)'
 end
