@@ -1,10 +1,10 @@
 using Unitary, Flux, BenchmarkTools
-using Unitary: Butterfly, lowup
+using Unitary: UnitaryGivens, lowup
 
 x = randn(Float32, 50, 100)
 xx = randn(Float32, 100, 50)
 
-a = Butterfly(50)
+a = UnitaryGivens(50)
 @btime a * x;		# 217.676 μs (4 allocations: 20.00 KiB)
 @btime xx * a;		# 244.549 μs (4 allocations: 20.00 KiB)
 

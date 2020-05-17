@@ -9,12 +9,12 @@ const MatVec = Union{Matrix, Vector}
 const TransposedMatVec = Union{Matrix, SubArray, Vector,Transpose{T,Matrix{T}} where T, Transpose{T,Vector{T}} where T}
 
 
-include("givens/givens.jl")
-include("householder/householder.jl")
-include("layers/layers.jl")
-include("LU/LU.jl")
-include("LDU/LDU.jl")
+include("givens/include.jl")
+include("householder/include.jl")
+include("layers/include.jl")
+include("LU/include.jl")
+include("LDU/include.jl")
 
-export UnitaryHouseholder, Butterfly, SVDTransform
+export UnitaryHouseholder, UnitaryGivens, SVDTransform
 export lowup, lowdup, LUTransform
 end # module
