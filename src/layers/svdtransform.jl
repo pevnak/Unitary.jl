@@ -23,7 +23,7 @@ function SVDTransform(n::Int, σ, unitary = :householder)
 	n == 1 && return(ScaleShift(1, σ))
 	if unitary == :householder
 		return(_svdtransform_householder(n, σ))
-	elseif unitary == :givens || unitary == :givens
+	elseif unitary == :givens
 		return(_svdtransform_givens(n, σ))
 	else 
 		@error "unknown type of unitary matrix $unitary"
@@ -41,9 +41,9 @@ _svdtransform_givens(n::Int, σ) =
 			σ)
 
 _svdtransform_householder(n::Int, σ) = 
-	SVDTransform(UnitaryHouseholder(Float32, n), 
+	SVDTransform(UnitaryHouseholder(n), 
 			DiagonalRectangular(rand(Float32,n), n, n),
-			UnitaryHouseholder(Float32, n) ,
+			UnitaryHouseholder(n),
 			0.01f0.*randn(Float32,n),
 			σ)
 

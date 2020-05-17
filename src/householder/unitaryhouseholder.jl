@@ -11,7 +11,7 @@ Flux.@functor UnitaryHouseholder
 Flux.trainable(m::UnitaryHouseholder) = (m.Y,)
 
 #Constructors#
-UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float64, n)
+UnitaryHouseholder(n::Int) = UnitaryHouseholder(Float32, n)
 
 function UnitaryHouseholder(T::DataType, n::Int)
 	Y = Matrix(LowerTriangular(rand(T, n, n)))
