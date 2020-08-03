@@ -6,7 +6,7 @@ end
 
 function UnitaryGivens(n) 
 	idxs = [(i,j) for i in 1:n for j in i+1:n];
-	θs = 2π*rand(Float32,length(idxs));
+	θs = Float32.(2π*rand(length(idxs)));
 	UnitaryGivens(θs, idxs, n)
 end
 
