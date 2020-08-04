@@ -16,7 +16,7 @@ end
 
 @testset "UnitaryGivens: multiplication, transposition, and, inversion" begin
 	a = UnitaryGivens(4)
-	x = randn(4,4)
+	x = randn(Float32,4,4)
 
 	am = Matrix(a)
 	@testset "a * x" begin
@@ -34,7 +34,7 @@ end
 
 @testset "inplace multiplication" begin 
 	a = UnitaryGivens(5)
-	x = randn(5,5)
+	x = randn(Float32,5,5)
 	fdm = central_fdm(5, 1)
 	@testset "a * x" begin
 		o = a * x;
