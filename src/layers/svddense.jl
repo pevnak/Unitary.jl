@@ -19,7 +19,7 @@ Flux.@functor SVDDense
 	`σ` --- an invertible and transfer function, cuurently implemented `selu` and `identity`
 	indexes --- method of generating indexes of givens rotations (`:butterfly` for the correct generation; `:random` for randomly generated patterns)
 """
-function SVDDense(n::Int, σ, unitary = :householder)
+function SVDDense(n::Int, σ = identity, unitary = :butterfly)
 	n == 1 && return(ScaleShift(1, σ))
 	if unitary == :householder
 		return(_svddense_householder(n, σ))
