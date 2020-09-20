@@ -14,6 +14,6 @@ include("householder/householder.jl")
 include("LU/LU.jl")
 include("LDU/LDU.jl")
 
-export UnitaryHouseholder, Butterfly, SVDDense
+export UnitaryHouseholder, Givens, SVDDense
 export lowup, lowdup, LUDense
 end # module

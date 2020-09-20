@@ -1,59 +1,59 @@
-struct Butterfly{T} 
+struct Givens{T} 
 	θs::Vector{T}
 	idxs::Vector{Tuple{Int,Int}}
 	n::Int
 end
 
-function Butterfly(n) 
+function Givens(n) 
 	idxs = [(i,j) for i in 1:n for j in i+1:n];
 	θs = 2π*rand(Float32,length(idxs));
-	Butterfly(θs, idxs, n)
+	Givens(θs, idxs, n)
 end
 
-struct TransposedButterfly{B<:Butterfly} 
+struct TransposedGivens{B<:Givens} 
 	parent::B
 end
 
-Flux.@functor Butterfly
-Flux.@functor TransposedButterfly
+Flux.@functor Givens
+Flux.@functor TransposedGivens
 
-function Base.Matrix(a::Butterfly{T}) where {T}
+function Base.Matrix(a::Givens{T}) where {T}
 	a * T.(Matrix(I(a.n))) 
 end
 
-Base.Matrix(a::TransposedButterfly) = transpose(Matrix(a.parent))
+Base.Matrix(a::TransposedGivens) = transpose(Matrix(a.parent))
 
 
-Base.size(a::Butterfly) = (a.n,a.n)
-Base.size(a::Butterfly, i::Int) = a.n
-Base.size(a::TransposedButterfly,i...) = size(a.parent)
+Base.size(a::Givens) = (a.n,a.n)
+Base.size(a::Givens, i::Int) = a.n
+Base.size(a::TransposedGivens,i...) = size(a.parent)
 
-Base.eltype(a::Butterfly{T}) where {T} = T
-Base.eltype(a::TransposedButterfly) = eltype(a.parent)
-LinearAlgebra.transpose(a::Butterfly) = TransposedButterfly(a)
-LinearAlgebra.transpose(a::TransposedButterfly) = a.parent
-Base.inv(a::Butterfly) = transpose(a)
-Base.inv(a::TransposedButterfly) = transpose(a)
-Base.show(io::IO, a::Butterfly) = print(io, "Butterfly ",a.θs)
-Base.show(io::IO, a::TransposedButterfly) = print(io, "Butterflyᵀ ",a.parent.θ)
-Base.zero(a::Butterfly) = Butterfly(zero(a.θs), a.i, a.j, a.n)
-Base.zero(a::TransposedButterfly) = TransposedButterfly(zero(a.parent))
+Base.eltype(a::Givens{T}) where {T} = T
+Base.eltype(a::TransposedGivens) = eltype(a.parent)
+LinearAlgebra.transpose(a::Givens) = TransposedGivens(a)
+LinearAlgebra.transpose(a::TransposedGivens) = a.parent
+Base.inv(a::Givens) = transpose(a)
+Base.inv(a::TransposedGivens) = transpose(a)
+Base.show(io::IO, a::Givens) = print(io, "Givens ",a.θs)
+Base.show(io::IO, a::TransposedGivens) = print(io, "Givensᵀ ",a.parent.θ)
+Base.zero(a::Givens) = Givens(zero(a.θs), a.i, a.j, a.n)
+Base.zero(a::TransposedGivens) = TransposedGivens(zero(a.parent))
 
 
-Zygote.@adjoint function LinearAlgebra.transpose(x::TransposedButterfly)
-  return(transpose(x), Δ -> (TransposedButterfly(Δ.θ),))
+Zygote.@adjoint function LinearAlgebra.transpose(x::TransposedGivens)
+  return(transpose(x), Δ -> (TransposedGivens(Δ.θ),))
 end
 
-Zygote.@adjoint function LinearAlgebra.transpose(x::Butterfly)
-  return transpose(x), Δ -> (Butterfly(Δ.parent.θs, x.idxs, x.n),)
+Zygote.@adjoint function LinearAlgebra.transpose(x::Givens)
+  return transpose(x), Δ -> (Givens(Δ.parent.θs, x.idxs, x.n),)
 end
 
 
 
-*(a::Butterfly, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.θs, a.idxs, x, 1))
-*(x::TransposedMatVec, a::Butterfly) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
-*(a::TransposedButterfly, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θs, a.parent.idxs, x, -1))
-*(x::TransposedMatVec, a::TransposedButterfly) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
+*(a::Givens, x::TransposedMatVec) = (@assert a.n == size(x,1); _mulax(a.θs, a.idxs, x, 1))
+*(x::TransposedMatVec, a::Givens) = (@assert a.n == size(x,2); _mulxa(x, a.θs, a.idxs, 1))
+*(a::TransposedGivens, x::TransposedMatVec) = (@assert a.parent.n == size(x,1); _mulax(a.parent.θs, a.parent.idxs, x, -1))
+*(x::TransposedMatVec, a::TransposedGivens) = (@assert a.parent.n == size(x,2); _mulxa(x, a.parent.θs, a.parent.idxs, -1))
 
 """
 	_mulax(θ::Vector, x::MatVec)

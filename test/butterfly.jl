@@ -1,21 +1,21 @@
 using Unitary, Test, Flux
-using Unitary: Butterfly
+using Unitary: Givens
 using FiniteDifferences
 using Unitary: _mulax!, _∇mulax, _∇mulxa
 
-@testset "Conversion of Butterfly to matrix" begin 
-	@test Matrix(Butterfly([π/2,π], [(1,2), (3,4)], 4)) ≈ [0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1]
-	@test Matrix(Butterfly([π/2,π], [(1,2), (4,3)], 4)) ≈ [0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1]
-	@test Matrix(Butterfly([π/2,π], [(1,3), (2,4)], 4)) ≈ [0  0 -1 0;0 -1 0 0;1 0 0 0;0 0 0 -1]
-	@test Matrix(Butterfly([π/2,π], [(1,4), (2,3)], 4)) ≈ [0  0 0 -1;0 -1 0 0;0 0 -1 0;1 0 0 0]
-	@test Matrix(transpose(Butterfly([π/2,π], [(1,2), (3,4)], 4))) ≈ transpose([0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1])
-	@test Matrix(transpose(Butterfly([π/2,π], [(1,2), (4,3)], 4))) ≈ transpose([0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1])
-	@test Matrix(transpose(Butterfly([π/2,π], [(1,3), (2,4)], 4))) ≈ transpose([0  0 -1 0;0 -1 0 0;1 0 0 0;0 0 0 -1])
-	@test Matrix(transpose(Butterfly([π/2,π], [(1,4), (2,3)], 4))) ≈ transpose([0  0 0 -1;0 -1 0 0;0 0 -1 0;1 0 0 0])
+@testset "Conversion of Givens to matrix" begin 
+	@test Matrix(Givens([π/2,π], [(1,2), (3,4)], 4)) ≈ [0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1]
+	@test Matrix(Givens([π/2,π], [(1,2), (4,3)], 4)) ≈ [0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1]
+	@test Matrix(Givens([π/2,π], [(1,3), (2,4)], 4)) ≈ [0  0 -1 0;0 -1 0 0;1 0 0 0;0 0 0 -1]
+	@test Matrix(Givens([π/2,π], [(1,4), (2,3)], 4)) ≈ [0  0 0 -1;0 -1 0 0;0 0 -1 0;1 0 0 0]
+	@test Matrix(transpose(Givens([π/2,π], [(1,2), (3,4)], 4))) ≈ transpose([0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1])
+	@test Matrix(transpose(Givens([π/2,π], [(1,2), (4,3)], 4))) ≈ transpose([0 -1 0 0;1 0 0 0;0 0 -1 0;0 0 0 -1])
+	@test Matrix(transpose(Givens([π/2,π], [(1,3), (2,4)], 4))) ≈ transpose([0  0 -1 0;0 -1 0 0;1 0 0 0;0 0 0 -1])
+	@test Matrix(transpose(Givens([π/2,π], [(1,4), (2,3)], 4))) ≈ transpose([0  0 0 -1;0 -1 0 0;0 0 -1 0;1 0 0 0])
 end
 
-@testset "UnitaryButterfly: multiplication, transposition, and, inversion" begin
-	a = Butterfly(4)
+@testset "UnitaryGivens: multiplication, transposition, and, inversion" begin
+	a = Givens(4)
 	x = randn(4,4)
 
 	am = Matrix(a)
@@ -33,13 +33,13 @@ end
 end
 
 @testset "inplace multiplication" begin 
-	a = Butterfly(5)
+	a = Givens(5)
 	x = randn(5,5)
 	fdm = central_fdm(5, 1)
 	@testset "a * x" begin
 		o = a * x;
 		Δ = ones(size(x));
-		∇θr = grad(fdm, θ -> sum(Butterfly(θ, a.idxs, 5) * x), a.θs)[1]
+		∇θr = grad(fdm, θ -> sum(Givens(θ, a.idxs, 5) * x), a.θs)[1]
 		∇xr = grad(fdm, x -> sum(a * x), x)[1]
 
 		∇θ, ∇x = _∇mulax(Δ, a.θs, a.idxs, o, 1)[[1,3]]
@@ -56,7 +56,7 @@ end
 	@testset "transpose(a) * x" begin
 		o = transpose(a) * x;
 		Δ = ones(size(x));
-		∇θr = grad(fdm, θ -> sum(transpose(Butterfly(θ, a.idxs, 5)) * x), a.θs)[1]
+		∇θr = grad(fdm, θ -> sum(transpose(Givens(θ, a.idxs, 5)) * x), a.θs)[1]
 		∇xr = grad(fdm, x -> sum(transpose(a)* x), x)[1]
 
 		∇θ, ∇x = _∇mulax(Δ, a.θs, a.idxs, o, -1)[[1,3]]
@@ -74,7 +74,7 @@ end
 		o = x * a;
 		Δ = ones(size(x));
 
-		∇θr = grad(fdm, θ -> sum(x * Butterfly(θ, a.idxs, 5)), a.θs)[1]
+		∇θr = grad(fdm, θ -> sum(x * Givens(θ, a.idxs, 5)), a.θs)[1]
 		∇xr = grad(fdm, x -> sum(x * a), x)[1]
 
 		∇x, ∇θ = _∇mulxa(Δ, o, a.θs, a.idxs, 1)[1:2]
@@ -92,7 +92,7 @@ end
 		o = x * transpose(a);
 		Δ = ones(size(x));
 
-		∇θr = grad(fdm, θ -> sum(x * transpose(Butterfly(θ, a.idxs, 5))), a.θs)[1]
+		∇θr = grad(fdm, θ -> sum(x * transpose(Givens(θ, a.idxs, 5))), a.θs)[1]
 		∇xr = grad(fdm, x -> sum(x * transpose(a)), x)[1]
 
 		∇x, ∇θ = _∇mulxa(Δ, o, a.θs, a.idxs, -1)[1:2]
