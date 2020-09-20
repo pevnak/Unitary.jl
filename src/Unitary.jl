@@ -11,7 +11,6 @@ const TransposedMatVec = Union{Matrix, SubArray, Vector,Transpose{T,Matrix{T}} w
 
 include("givens/givens.jl")
 include("householder/householder.jl")
-include("layers/layers.jl")
 include("LU/LU.jl")
 include("LDU/LDU.jl")
 
