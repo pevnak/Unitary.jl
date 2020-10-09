@@ -1,8 +1,6 @@
 # Unitary.jl
 
-This package implements a differentiable parametrization of a group of unitary matrices as described in paper
-\* Sum-Product-Transform Networks: Exploiting Symmetries using Invertible Transformation, 
-Tomas Pevny, Vasek Smidl, Martin Trapp, Ondrej Polacek, Tomas Oberhuber, 2020 * [arxiv.org/abs/2005.01297](arxiv.org/abs/2005.01297)
+This package implements a differentiable parametrization of a group of unitary matrices as described in paper *Sum-Product-Transform Networks: Exploiting Symmetries using Invertible Transformations, Tomas Pevny, Vasek Smidl, Martin Trapp, Ondrej Polacek, Tomas Oberhuber, 2020* [https://arxiv.org/abs/2005.01297](https://arxiv.org/abs/2005.01297)
 
 The actual "Dense" node implementing `f(x) = σ.(W * x .+ b)`, where `W` is in svd form has moved to [https://github.com/pevnak/SumProductTransform.jl](https://github.com/pevnak/SumProductTransform.jl) to keep this simple. Since in the paper, we have experimented with different ways, how to efficiently implement Dense matrices featuring efficient inversion and calculation of determinant, the repository contains a little bit more.
 
