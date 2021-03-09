@@ -6,7 +6,7 @@ end
 
 function Givens(n) 
 	idxs = [(i,j) for i in 1:n for j in i+1:n];
-	θs = 2π*rand(Float32,length(idxs));
+	θs = rand(Float32,length(idxs))*2*π;
 	Givens(θs, idxs, n)
 end
 
