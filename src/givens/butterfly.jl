@@ -73,7 +73,7 @@ end
 function _mulax!(o, θs, idxs, x, t)
 	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		sinθ, cosθ  = sincos(θs[k])
 		_mulax!(o, cosθ, sinθ, idxs[k][1], idxs[k][2], o, t)
 	end
 	o
@@ -89,7 +89,7 @@ function _∇mulax(Δ, θs, idxs, o, t)
 	Δ = deepcopy(Matrix(Δ))
 	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		sinθ, cosθ  = sincos(θs[k])
 		i,j = idxs[k][1], idxs[k][2]
 		_mulax!(o, cosθ, sinθ, i, j, o, -t) #compute the input
 		∇θ[k] = _∇mulax(Δ, cosθ, sinθ, i, j, o, t) #compute the gradient
@@ -112,7 +112,7 @@ _mulxa(x, θs, idxs, t) = _mulxa!(deepcopy(x), x, θs, idxs, t)
 function _mulxa!(o, x, θs, idxs, t)
 	order = t == 1 ? (length(idxs):-1:1) : (1:length(idxs))
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		sinθ, cosθ  = sincos(θs[k])
 		_mulxa!(o, o, cosθ, sinθ, idxs[k][1], idxs[k][2], t)
 	end
 	o
@@ -131,7 +131,7 @@ function _∇mulxa(Δ, o, θs, idxs, t)
 	Δ = deepcopy(Matrix(Δ))
 	order = t == 1 ? (1:length(idxs)) : (length(idxs):-1:1)
 	@inbounds for k in order
-		cosθ, sinθ = cos(θs[k]), sin(θs[k])
+		sinθ, cosθ  = sincos(θs[k])
 		i,j = idxs[k][1], idxs[k][2]
 		_mulxa!(o, o, cosθ, sinθ, i, j, -t) #compute the input
 		∇θ[k] = _∇mulxa(Δ, o, cosθ, sinθ, i, j, t) #compute the gradient

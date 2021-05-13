@@ -15,7 +15,7 @@ using Unitary: _mulax!, _∇mulax, _∇mulxa
 end
 
 @testset "UnitaryGivens: multiplication, transposition, and, inversion" begin
-	a = Givens(4)
+	a = f64(Givens(4))
 	x = randn(4,4)
 
 	am = Matrix(a)
@@ -33,7 +33,7 @@ end
 end
 
 @testset "inplace multiplication" begin 
-	a = Givens(5)
+	a = f64(Givens(5))
 	x = randn(5,5)
 	fdm = central_fdm(5, 1)
 	@testset "a * x" begin
